@@ -16,10 +16,12 @@ class MovieResource extends JsonResource
             'slug' => $this->slug,
             'title' => $this->title,
             'synopsis' => $this->synopsis,
-            'poster_url' => $this->poster_url,
+            'thumbnail_url' => $this->thumbnailSrc(),
             'embed_url' => $this->embed_url,
             'release_year' => $this->release_year,
             'duration_minutes' => $this->duration_minutes,
+            'categories' => $this->whenLoaded('categories', fn () => $this->categories
+                ->map(fn ($c) => ['name' => $c->name, 'slug' => $c->slug])->values()),
             'views' => $this->views,
             'rating_avg' => $this->rating_avg,
             'rating_count' => $this->rating_count,

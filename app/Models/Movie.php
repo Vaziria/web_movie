@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -26,8 +27,11 @@ class Movie extends Model
 
     public const MAX_SCORE = 5;
 
+    /** Uploaded thumbnails live here (relative to public/). No symlinks: they are disabled on the shared host. */
+    public const THUMBNAIL_DIR = 'uploads/thumbnails';
+
     protected $fillable = [
-        'title', 'slug', 'synopsis', 'poster_url', 'embed_url',
+        'title', 'slug', 'synopsis', 'thumbnail_url', 'embed_url',
         'release_year', 'duration_minutes',
     ];
 
@@ -57,6 +61,14 @@ class Movie extends Model
                 $movie->embed_url = static::normalizeEmbedUrl($movie->embed_url);
             }
         });
+
+        static::updated(function (Movie $movie) {
+            if ($movie->wasChanged('thumbnail_url')) {
+                static::deleteLocalThumbnail($movie->getOriginal('thumbnail_url'));
+            }
+        });
+
+        static::deleted(fn (Movie $movie) => static::deleteLocalThumbnail($movie->thumbnail_url));
     }
 
     /** Turn known "watch page" links into embeddable player URLs (see config/movies.php). */
@@ -83,6 +95,37 @@ class Movie extends Model
         return $slug;
     }
 
+    /** Remove an uploaded thumbnail file (stored as "/uploads/thumbnails/..."); remote URLs are ignored. */
+    public static function deleteLocalThumbnail(?string $value): void
+    {
+        $prefix = '/'.self::THUMBNAIL_DIR.'/';
+        if ($value && str_starts_with($value, $prefix)) {
+            $path = public_path(ltrim($value, '/'));
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
+    }
+
+    /** Absolute URL of the thumbnail (uploaded file or remote URL), or null. */
+    public function thumbnailSrc(): ?string
+    {
+        $value = $this->thumbnail_url;
+        if (blank($value)) {
+            return null;
+        }
+
+        return str_starts_with($value, '/') ? url($value) : $value;
+    }
+
+    /** Plain-text summary for meta descriptions. */
+    public function summary(int $limit = 155): string
+    {
+        $text = trim(preg_replace('/\s+/', ' ', (string) $this->synopsis));
+
+        return $text !== '' ? Str::limit($text, $limit) : "Watch {$this->title} online on ".config('app.name').'.';
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
@@ -98,14 +141,23 @@ class Movie extends Model
         return $this->hasMany(Rating::class);
     }
 
-    /** Apply ?q= search and ?sort= ordering. Unknown sort keys fall back to "created". */
-    public function scopeBrowse(Builder $query, ?string $search, ?string $sort): Builder
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class)->orderBy('name');
+    }
+
+    /** Apply search, category filter and sort. Unknown sort keys fall back to "created". */
+    public function scopeBrowse(Builder $query, ?string $search, ?string $sort, ?string $category = null): Builder
     {
         if (filled($search)) {
             $term = '%'.addcslashes(trim($search), '%_\\').'%';
             $query->where(fn (Builder $q) => $q
                 ->where('title', 'like', $term)
                 ->orWhere('synopsis', 'like', $term));
+        }
+
+        if (filled($category)) {
+            $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
         }
 
         [$column, $direction] = self::SORTS[$sort] ?? self::SORTS['created'];

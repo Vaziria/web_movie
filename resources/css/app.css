@@ -1,9 +1,19 @@
 @import 'tailwindcss';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
+/*
+ * Flat, minimal, mobile-first.
+ * - Unprefixed utilities target phones; sm:/md:/lg: layer on larger screens.
+ * - Flat: solid fills and 1px borders only. No shadows, gradients or lift animations.
+ * - One accent colour (red) on a near-black neutral palette.
+ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --color-accent: #ef4444;
+    --color-accent-hover: #dc2626;
+    --color-ink-950: #0a0a0a;
+    --color-ink-900: #141414;
+    --color-ink-800: #1f1f1f;
+    --color-ink-700: #2e2e2e;
 }

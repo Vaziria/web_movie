@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('synopsis')->nullable();
-            $table->string('poster_url', 2048)->nullable();
+            $table->string('thumbnail_url', 2048)->nullable();
             $table->string('embed_url', 2048);
             $table->unsignedSmallInteger('release_year')->nullable();
             $table->unsignedSmallInteger('duration_minutes')->nullable();

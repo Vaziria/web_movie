@@ -15,7 +15,7 @@ class MovieFactory extends Factory
         return [
             'title' => fake()->unique()->sentence(3),
             'synopsis' => fake()->paragraph(),
-            'poster_url' => null,
+            'thumbnail_url' => null,
             'embed_url' => 'https://player.example.com/e/'.fake()->unique()->bothify('????####'),
             'release_year' => fake()->numberBetween(1970, 2026),
             'duration_minutes' => fake()->numberBetween(70, 180),
