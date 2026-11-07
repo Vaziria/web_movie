@@ -1,0 +1,2109 @@
+{
+    "openapi": "3.1.2",
+    "info": {
+        "title": "MovieMov API",
+        "version": "1.0.0",
+        "description": "Admin API for **MovieMov** (moviemov.id): post and manage movies and categories, read broken-video reports.\nEverything public on the site can also be read here without a token.\n\n## Basics\n\n- Send `Accept: application/json` on every request, so errors come back as JSON instead of redirects.\n- Write endpoints need `Authorization: Bearer <token>`. Get a token from `POST /login` (admin users only).\n  Tokens do not expire; `POST /logout` revokes one.\n- Movies and categories are addressed by **slug**: `/movies/night-train`, `/categories/sci-fi`.\n- Responses use ISO 8601 times in UTC. A `published_at` you send **without an offset is read as WIB**\n  (`Asia/Jakarta`, UTC+7).\n\n## Post a movie\n\n1. `POST /login` with `email` + `password`, copy `token`.\n2. `POST /movies` with at least `title` and `embed_url`. `embed_url` may be the player URL or the whole\n   `<iframe src=\"...\">` code from the video host; `https://vidara.to/v/<id>` is turned into `https://vidara.to/e/<id>`.\n3. Optional: `backup_embed_urls` (Server 2..6), `thumbnail` (file, multipart) or `thumbnail_url`, `categories`\n   (names; new ones are created), `synopsis`, `release_year`, `duration_minutes`.\n4. Publishing: leave `status` out to publish now, send `\"status\": \"draft\"` to hide it, or\n   `\"status\": \"scheduled\"` with `published_at` to make it go live by itself later.\n\n```sh\nTOKEN=$(curl -s -X POST https://moviemov.id/api/login -H 'Accept: application/json' \\\n  -d email=admin@moviemov.id -d password=YOUR_PASSWORD | jq -r .token)\n\n# JSON\ncurl -X POST https://moviemov.id/api/movies \\\n  -H 'Accept: application/json' -H 'Content-Type: application/json' -H \"Authorization: Bearer $TOKEN\" \\\n  -d '{\"title\":\"Night Train\",\"embed_url\":\"<iframe src=\\\"https://vidara.to/e/XXXX\\\" allowfullscreen></iframe>\",\n       \"categories\":[\"Drama\",\"Thriller\"],\"duration_minutes\":104,\"release_year\":2024}'\n\n# Multipart, with a thumbnail file (use --form-string for iframe code: curl reads a -F value starting with < as a file)\ncurl -X POST https://moviemov.id/api/movies -H 'Accept: application/json' -H \"Authorization: Bearer $TOKEN\" \\\n  -F title='Night Train' --form-string embed_url='<iframe src=\"https://vidara.to/e/XXXX\"></iframe>' \\\n  -F categories='Drama, Thriller' -F thumbnail=@night-train.jpg\n```\n\nTo update a movie with a new thumbnail file use `POST /movies/{slug}` (multipart); for JSON use `PATCH`.\n\n## Errors\n\n`401` no/invalid token \u00b7 `403` not an admin \u00b7 `404` unknown slug (or a draft without an admin token) \u00b7\n`422` validation failed (`errors` lists each field) \u00b7 `429` too many login attempts (5 per minute)."
+    },
+    "servers": [
+        {
+            "url": "https://moviemov.id/api",
+            "description": "Production"
+        },
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Local (docker compose)"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Auth",
+            "description": "Get a bearer token for the write endpoints. Only admin users can log in."
+        },
+        {
+            "name": "Movies",
+            "description": "Movie posts: list, read, create, update, delete. Write endpoints need an admin token."
+        },
+        {
+            "name": "Categories",
+            "description": "Categories shown as chips and `/category/{slug}` pages. `movies_count` counts published movies."
+        },
+        {
+            "name": "Reports",
+            "description": "Visitor \"Video not working?\" reports. Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`."
+        }
+    ],
+    "security": [
+        {
+            "http": []
+        }
+    ],
+    "paths": {
+        "/login": {
+            "post": {
+                "operationId": "auth.login",
+                "description": "Exchange admin credentials for a bearer token. Send it as `Authorization: Bearer <token>`. Tokens do not\nexpire; revoke one with `POST /logout`. Wrong password or a non-admin user: 422. Limited to 5 attempts per\nminute.",
+                "summary": "Log in",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "examples": [
+                                            "admin@moviemov.id"
+                                        ]
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "description": "Label for the token, e.g. the tool that uses it.",
+                                        "examples": [
+                                            "uploader-bot"
+                                        ],
+                                        "maxLength": 100
+                                    }
+                                },
+                                "required": [
+                                    "email",
+                                    "password"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        },
+                                        "token_type": {
+                                            "type": "string",
+                                            "const": "Bearer"
+                                        },
+                                        "user": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "email": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "email"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "token",
+                                        "token_type",
+                                        "user"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            }
+        },
+        "/me": {
+            "get": {
+                "operationId": "auth.me",
+                "summary": "Current user",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "integer"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "email": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "id",
+                                        "name",
+                                        "email"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/logout": {
+            "post": {
+                "operationId": "auth.logout",
+                "description": "Revokes the token used for this request.",
+                "summary": "Log out",
+                "tags": [
+                    "Auth"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "const": "Logged out."
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/movies": {
+            "get": {
+                "operationId": "movies.index",
+                "description": "Public list of published movies, 24 per page. Filters combine freely (`q` + `category` + `sort` + `dir`).\nWith an admin token, `status` also lists drafts and scheduled movies.",
+                "summary": "List movies",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search in title and synopsis.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        },
+                        "example": "night"
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "`created` = newest by publish time (default), `trending` = most views in the last 7 days (adds\n`views_week`), `rating` = highest average, `views` = most viewed all time, `duration` = longest.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "created",
+                                "trending",
+                                "rating",
+                                "views",
+                                "duration",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "category",
+                        "in": "query",
+                        "description": "Category slug.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 120
+                        },
+                        "example": "sci-fi"
+                    },
+                    {
+                        "name": "dir",
+                        "in": "query",
+                        "description": "Reverse the sort with `asc` (e.g. `sort=duration&dir=asc` = shortest first). Default `desc`.\nMovies without a value (e.g. no duration) are always last.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "asc",
+                                "desc",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Results per page.",
+                        "schema": {
+                            "type": "integer",
+                            "default": 24,
+                            "minimum": 1,
+                            "maximum": 100
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Admin token only: `scheduled`, `draft` or `all`. Anything but `published` without an admin token\nreturns 403.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "published",
+                                "scheduled",
+                                "draft",
+                                "all",
+                                null
+                            ],
+                            "default": "published"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "allOf": [
+                                                    {
+                                                        "$ref": "#/components/schemas/MovieResource"
+                                                    },
+                                                    {
+                                                        "type": "object",
+                                                        "required": [
+                                                            "categories"
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                "Only admins can list drafts and scheduled movies."
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            },
+            "post": {
+                "operationId": "movies.store",
+                "description": "Send JSON or multipart (multipart is needed to upload a `thumbnail` file). Only `title` and `embed_url` are\nrequired; `embed_url` may be the whole `<iframe>` code. New movies are published right away unless you send\n`status` = `draft` or `scheduled` (+ `published_at`, read as WIB without an offset).\n\nWith curl multipart, send iframe code with `--form-string embed_url='<iframe ...>'`: curl reads a `-F` value\nstarting with `<` as a file name.",
+                "summary": "Create a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MovieRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MovieRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/MovieResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "categories"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/movies/{movie}": {
+            "get": {
+                "operationId": "movies.show",
+                "description": "Drafts and scheduled movies return 404 unless you send an admin token.",
+                "summary": "Get a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/MovieResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "categories"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                },
+                "security": []
+            },
+            "patch": {
+                "operationId": "movies.update",
+                "description": "Same fields as create, all optional: only the fields you send change. Use `PATCH`/`PUT` with JSON, or\n`POST` with multipart to upload a new `thumbnail` file (PHP only reads uploaded files on POST).\n`thumbnail_url: null` or `remove_thumbnail: true` removes the thumbnail.",
+                "summary": "Update a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/MovieResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "categories"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "movies.update.put",
+                "description": "Same fields as create, all optional: only the fields you send change. Use `PATCH`/`PUT` with JSON, or\n`POST` with multipart to upload a new `thumbnail` file (PHP only reads uploaded files on POST).\n`thumbnail_url: null` or `remove_thumbnail: true` removes the thumbnail.",
+                "summary": "Update a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/MovieResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "categories"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "post": {
+                "operationId": "movies.update.multipart",
+                "description": "Same fields as create, all optional: only the fields you send change. Use `PATCH`/`PUT` with JSON, or\n`POST` with multipart to upload a new `thumbnail` file (PHP only reads uploaded files on POST).\n`thumbnail_url: null` or `remove_thumbnail: true` removes the thumbnail.",
+                "summary": "Update a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMovieRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`MovieResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/MovieResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "categories"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "movies.destroy",
+                "description": "Also deletes its ratings, reports and uploaded thumbnail file.",
+                "summary": "Delete a movie",
+                "tags": [
+                    "Movies"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/categories": {
+            "get": {
+                "operationId": "categories.index",
+                "description": "All categories, sorted by name.",
+                "summary": "List categories",
+                "tags": [
+                    "Categories"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
+                                                    "description": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "movies_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "url": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "name",
+                                                    "slug",
+                                                    "description",
+                                                    "movies_count",
+                                                    "url"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": []
+            },
+            "post": {
+                "operationId": "categories.store",
+                "description": "`slug` is generated from `name` when left out. Categories are also created automatically when a movie is\nposted with a new category name.",
+                "summary": "Create a category",
+                "tags": [
+                    "Categories"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "description",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/categories/{category}": {
+            "get": {
+                "operationId": "categories.show",
+                "summary": "Get a category",
+                "tags": [
+                    "Categories"
+                ],
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "path",
+                        "required": true,
+                        "description": "The category slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "description",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                },
+                "security": []
+            },
+            "patch": {
+                "operationId": "categories.update",
+                "description": "Change `name`, `slug` and/or `description`. Changing `slug` changes the category page URL.",
+                "summary": "Update a category",
+                "tags": [
+                    "Categories"
+                ],
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "path",
+                        "required": true,
+                        "description": "The category slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "description",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "categories.update.put",
+                "description": "Change `name`, `slug` and/or `description`. Changing `slug` changes the category page URL.",
+                "summary": "Update a category",
+                "tags": [
+                    "Categories"
+                ],
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "path",
+                        "required": true,
+                        "description": "The category slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateCategoryRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "description": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "description",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "categories.destroy",
+                "description": "The category is removed from its movies; the movies themselves are kept.",
+                "summary": "Delete a category",
+                "tags": [
+                    "Categories"
+                ],
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "path",
+                        "required": true,
+                        "description": "The category slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/reports": {
+            "get": {
+                "operationId": "reports.index",
+                "description": "One entry per movie with open reports, most reported first. `servers` and `reasons` map a server number /\nreason to its count.",
+                "summary": "List open reports",
+                "tags": [
+                    "Reports"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "movie": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "slug": {
+                                                                "type": "string"
+                                                            },
+                                                            "title": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "slug",
+                                                            "title"
+                                                        ]
+                                                    },
+                                                    "open_reports": {
+                                                        "type": "integer"
+                                                    },
+                                                    "servers": {
+                                                        "type": "object",
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "reasons": {
+                                                        "type": "object",
+                                                        "additionalProperties": {
+                                                            "type": "integer"
+                                                        }
+                                                    },
+                                                    "latest_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "movie",
+                                                    "open_reports",
+                                                    "servers",
+                                                    "reasons",
+                                                    "latest_at"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/reports/{movie}/resolve": {
+            "post": {
+                "operationId": "reports.resolve",
+                "description": "Marks every open report of the movie as fixed and returns how many.",
+                "summary": "Mark a movie's reports fixed",
+                "tags": [
+                    "Reports"
+                ],
+                "parameters": [
+                    {
+                        "name": "movie",
+                        "in": "path",
+                        "required": true,
+                        "description": "The movie slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "resolved": {
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "required": [
+                                        "resolved"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "http": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "CategoryRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Category name, shown on chips and the category page.",
+                        "examples": [
+                            "Sci-Fi"
+                        ],
+                        "maxLength": 100
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL of the category page (`/category/{slug}`): lowercase letters, digits and single dashes, unique.\nGenerated from `name` when left out. Changing it changes the page URL.",
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        "examples": [
+                            "sci-fi"
+                        ],
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Shown on the category page and used as its Google description: write 1-2 useful sentences.",
+                        "examples": [
+                            "Space, time and robots."
+                        ],
+                        "maxLength": 2000
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "CategoryRequest"
+            },
+            "MovieRequest": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Movie title.",
+                        "examples": [
+                            "Night Train"
+                        ],
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "URL path of the movie page (`/movies/{slug}`). Generated from the title when left out\n(`night-train`, then `night-train-2`, ...). Changing it changes the page URL.",
+                        "examples": [
+                            "night-train"
+                        ],
+                        "maxLength": 255
+                    },
+                    "embed_url": {
+                        "type": "string",
+                        "description": "Player (Server 1). An `https` player URL **or the whole `<iframe src=\"...\">` embed code** from the\nvideo host (its `src` is used). `https://vidara.to/v/<id>` is rewritten to `https://vidara.to/e/<id>`.",
+                        "examples": [
+                            "<iframe src=\"https://vidara.to/e/8SdwOuKAAk92t\" width=\"640\" height=\"360\" frameborder=\"0\" allowfullscreen></iframe>"
+                        ]
+                    },
+                    "backup_embed_urls": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Up to 5 backup players, shown as Server 2, 3, ... Each item is an `https` URL or iframe code.\nJSON: an array. Multipart: one per line. Duplicates and copies of `embed_url` are dropped;\n`[]` or `null` removes them all.",
+                        "examples": [
+                            [
+                                "https://vidara.to/e/AnotherId"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "format": "uri",
+                            "maxLength": 2048
+                        }
+                    },
+                    "thumbnail_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "description": "Thumbnail as a remote image URL (16:9 looks best). Ignored when a `thumbnail` file is sent.\n`null` removes the current thumbnail.",
+                        "examples": [
+                            "https://example.com/night-train.jpg"
+                        ],
+                        "maxLength": 2048
+                    },
+                    "thumbnail": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Thumbnail image file (multipart only): jpg, png or webp, max 2 MB, 16:9 (e.g. 1280x720).\nReplaces (and deletes) the previous uploaded file."
+                    },
+                    "synopsis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Description. The first ~155 characters become the page's Google description.",
+                        "examples": [
+                            "A long ride through the night."
+                        ],
+                        "maxLength": 10000
+                    },
+                    "release_year": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Release year.",
+                        "examples": [
+                            2024
+                        ],
+                        "minimum": 1870,
+                        "maximum": 2100
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Length in minutes. Shown as `1j 45m` / `1h 45m` and used by `sort=duration`.",
+                        "examples": [
+                            104
+                        ],
+                        "minimum": 1,
+                        "maximum": 1440
+                    },
+                    "categories": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Category names (max 10). JSON: an array. Multipart: comma separated (`Drama, Thriller`).\nMatched by slug (`sci fi` = `Sci-Fi`); unknown names create a category. On update the list\nreplaces the old one (`[]` clears it); leave it out to keep the categories.",
+                        "examples": [
+                            [
+                                "Drama",
+                                "Thriller"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    },
+                    "remove_thumbnail": {
+                        "type": "boolean",
+                        "description": "Update only: `true` removes the current thumbnail."
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "`published` (live; the default for new movies), `draft` (hidden from visitors) or `scheduled`\n(goes live by itself at `published_at`). On update, leaving it out keeps the current status;\n`published` on a movie that is already live keeps its original date.",
+                        "enum": [
+                            "draft",
+                            "published",
+                            "scheduled"
+                        ],
+                        "examples": [
+                            "scheduled"
+                        ]
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Publish time. Required for `scheduled` (must be in the future); for `published` it must not be in\nthe future. **Without an offset it is read as WIB** (`Asia/Jakarta`): `2026-11-08 20:00` =\n13:00 UTC. With an offset (`+07:00`, `Z`) it is used as given. Sending `null` without `status`\nmakes the movie a draft.",
+                        "examples": [
+                            "2026-11-08 20:00"
+                        ]
+                    }
+                },
+                "required": [
+                    "title",
+                    "embed_url"
+                ],
+                "title": "MovieRequest"
+            },
+            "MovieResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "synopsis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "thumbnail_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Absolute thumbnail URL (uploaded file or remote image), or null."
+                    },
+                    "embed_url": {
+                        "type": "string",
+                        "description": "Player URL (Server 1), already extracted from iframe code."
+                    },
+                    "backup_embed_urls": {
+                        "type": "array",
+                        "description": "Backup players (Server 2, 3, ...). `[]` when none.",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "release_year": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "categories": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "slug"
+                            ]
+                        }
+                    },
+                    "views": {
+                        "type": "integer",
+                        "description": "Website page views, one per visitor session (API reads do not count)."
+                    },
+                    "rating_avg": {
+                        "type": "number",
+                        "description": "Average visitor rating 1-5 (two decimals); `0` when unrated."
+                    },
+                    "rating_count": {
+                        "type": "integer"
+                    },
+                    "views_week": {
+                        "type": "integer",
+                        "description": "Only with `sort=trending`: views in the last 7 days."
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "`published` (live), `scheduled` (goes live at `published_at`) or `draft` (hidden).",
+                        "enum": [
+                            "draft",
+                            "scheduled",
+                            "published"
+                        ]
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Publish time in UTC; `null` for drafts."
+                    },
+                    "url": {
+                        "type": "string",
+                        "description": "Public page (Indonesian). English: the same path under `/en`."
+                    },
+                    "created_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "updated_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "slug",
+                    "title",
+                    "synopsis",
+                    "thumbnail_url",
+                    "embed_url",
+                    "backup_embed_urls",
+                    "release_year",
+                    "duration_minutes",
+                    "views",
+                    "rating_avg",
+                    "rating_count",
+                    "status",
+                    "published_at",
+                    "url",
+                    "created_at",
+                    "updated_at"
+                ],
+                "title": "MovieResource"
+            },
+            "UpdateCategoryRequest": {
+                "type": "object",
+                "description": "Updating a category: all fields optional. Separate class so the generated API docs show that.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Category name, shown on chips and the category page.",
+                        "examples": [
+                            "Sci-Fi"
+                        ],
+                        "maxLength": 100
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL of the category page (`/category/{slug}`): lowercase letters, digits and single dashes, unique.\nGenerated from `name` when left out. Changing it changes the page URL.",
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        "examples": [
+                            "sci-fi"
+                        ],
+                        "maxLength": 120
+                    },
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Shown on the category page and used as its Google description: write 1-2 useful sentences.",
+                        "examples": [
+                            "Space, time and robots."
+                        ],
+                        "maxLength": 2000
+                    }
+                },
+                "title": "UpdateCategoryRequest"
+            },
+            "UpdateMovieRequest": {
+                "type": "object",
+                "description": "Updating a movie (API): same fields as creating, all optional. Only the fields you send change.\nA separate class so the generated API docs show the update fields as optional.",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Movie title.",
+                        "examples": [
+                            "Night Train"
+                        ],
+                        "maxLength": 255
+                    },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "URL path of the movie page (`/movies/{slug}`). Generated from the title when left out\n(`night-train`, then `night-train-2`, ...). Changing it changes the page URL.",
+                        "examples": [
+                            "night-train"
+                        ],
+                        "maxLength": 255
+                    },
+                    "embed_url": {
+                        "type": "string",
+                        "description": "Player (Server 1). An `https` player URL **or the whole `<iframe src=\"...\">` embed code** from the\nvideo host (its `src` is used). `https://vidara.to/v/<id>` is rewritten to `https://vidara.to/e/<id>`.",
+                        "examples": [
+                            "<iframe src=\"https://vidara.to/e/8SdwOuKAAk92t\" width=\"640\" height=\"360\" frameborder=\"0\" allowfullscreen></iframe>"
+                        ]
+                    },
+                    "backup_embed_urls": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Up to 5 backup players, shown as Server 2, 3, ... Each item is an `https` URL or iframe code.\nJSON: an array. Multipart: one per line. Duplicates and copies of `embed_url` are dropped;\n`[]` or `null` removes them all.",
+                        "examples": [
+                            [
+                                "https://vidara.to/e/AnotherId"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "format": "uri",
+                            "maxLength": 2048
+                        }
+                    },
+                    "thumbnail_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uri",
+                        "description": "Thumbnail as a remote image URL (16:9 looks best). Ignored when a `thumbnail` file is sent.\n`null` removes the current thumbnail.",
+                        "examples": [
+                            "https://example.com/night-train.jpg"
+                        ],
+                        "maxLength": 2048
+                    },
+                    "thumbnail": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Thumbnail image file (multipart only): jpg, png or webp, max 2 MB, 16:9 (e.g. 1280x720).\nReplaces (and deletes) the previous uploaded file."
+                    },
+                    "synopsis": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Description. The first ~155 characters become the page's Google description.",
+                        "examples": [
+                            "A long ride through the night."
+                        ],
+                        "maxLength": 10000
+                    },
+                    "release_year": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Release year.",
+                        "examples": [
+                            2024
+                        ],
+                        "minimum": 1870,
+                        "maximum": 2100
+                    },
+                    "duration_minutes": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "Length in minutes. Shown as `1j 45m` / `1h 45m` and used by `sort=duration`.",
+                        "examples": [
+                            104
+                        ],
+                        "minimum": 1,
+                        "maximum": 1440
+                    },
+                    "categories": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Category names (max 10). JSON: an array. Multipart: comma separated (`Drama, Thriller`).\nMatched by slug (`sci fi` = `Sci-Fi`); unknown names create a category. On update the list\nreplaces the old one (`[]` clears it); leave it out to keep the categories.",
+                        "examples": [
+                            [
+                                "Drama",
+                                "Thriller"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    },
+                    "remove_thumbnail": {
+                        "type": "boolean",
+                        "description": "Update only: `true` removes the current thumbnail."
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "`published` (live; the default for new movies), `draft` (hidden from visitors) or `scheduled`\n(goes live by itself at `published_at`). On update, leaving it out keeps the current status;\n`published` on a movie that is already live keeps its original date.",
+                        "enum": [
+                            "draft",
+                            "published",
+                            "scheduled"
+                        ],
+                        "examples": [
+                            "scheduled"
+                        ]
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Publish time. Required for `scheduled` (must be in the future); for `published` it must not be in\nthe future. **Without an offset it is read as WIB** (`Asia/Jakarta`): `2026-11-08 20:00` =\n13:00 UTC. With an offset (`+07:00`, `Z`) it is used as given. Sending `null` without `status`\nmakes the movie a draft.",
+                        "examples": [
+                            "2026-11-08 20:00"
+                        ]
+                    }
+                },
+                "title": "UpdateMovieRequest"
+            }
+        },
+        "responses": {
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            },
+            "ModelNotFoundException": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthenticationException": {
+                "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthorizationException": {
+                "description": "Authorization error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

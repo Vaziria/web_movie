@@ -225,6 +225,7 @@ class Movie extends Model
         return now()->subDays(max(1, (int) config('movies.trending_days', 7)) - 1)->toDateString();
     }
 
+    /** @return 'draft'|'scheduled'|'published' */
     public function status(): string
     {
         return match (true) {

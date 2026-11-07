@@ -8,7 +8,9 @@ through an admin-only JSON API.
 
 ## Documentation
 
-- [docs/API.md](docs/API.md): full API reference (fields, examples, responses, errors)
+- [docs/API.md](docs/API.md): API guide with curl examples (posting movies, drafts, scheduling, errors)
+- [docs/openapi.json](docs/openapi.json): OpenAPI 3.1 reference of every endpoint, field and response, generated
+  from the code (see "API reference" below)
 - [docs/ADMIN.md](docs/ADMIN.md): admin panel, posting movies, managing categories, SEO tips
 - [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment; redeploy with `deploy.cmd` (one command)
 - [AGENTS.md](AGENTS.md): decisions, conventions and commands for coding agents
@@ -28,81 +30,36 @@ Open http://localhost:8000. Tests: `docker compose run --rm --no-deps app php ar
 
 ## API
 
-Base URL: `https://moviemov.id/api`. Send `Accept: application/json` on every request.
-
-### Log in
-
-Admin users only. Returns a bearer token for the write endpoints.
+Base URL `https://moviemov.id/api`. Send `Accept: application/json` on every request.
 
 ```sh
-curl -X POST https://moviemov.id/api/login \
-  -H 'Accept: application/json' \
-  -d email=admin@moviemov.id -d password=...
-# => {"token":"1|abc...","token_type":"Bearer",...}
-```
+# 1. Log in (admin users only) and keep the token
+TOKEN=$(curl -s -X POST https://moviemov.id/api/login -H 'Accept: application/json' \
+  -d email=admin@moviemov.id -d password=YOUR_PASSWORD | jq -r .token)
 
-### Create a movie (JSON)
-
-```sh
+# 2. Post a movie: embed_url may be the player URL or the whole <iframe> code
 curl -X POST https://moviemov.id/api/movies \
-  -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer 1|abc...' \
-  -d '{
-    "title": "My Movie",
-    "embed_url": "<iframe src=\"https://vidara.to/e/8SdwOuKAAk92t\" width=\"640\" height=\"360\" frameborder=\"0\" allowfullscreen></iframe>",
-    "thumbnail_url": "https://example.com/thumb.jpg",
-    "categories": ["Action", "Drama"],
-    "synopsis": "...",
-    "release_year": 2026,
-    "duration_minutes": 110
-  }'
+  -H 'Accept: application/json' -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
+  -d '{"title":"Night Train","embed_url":"<iframe src=\"https://vidara.to/e/XXXX\"></iframe>","categories":["Drama"],"duration_minutes":104}'
 ```
 
-### Create a movie with a thumbnail file (multipart)
+Everything else (thumbnail upload, backup players, drafts and scheduled posts, updates, categories, reports) is in
+[docs/API.md](docs/API.md) and [docs/openapi.json](docs/openapi.json).
+
+### API reference (OpenAPI)
+
+`docs/openapi.json` is generated from the routes, validation rules and API resources by
+[Scramble](https://scramble.dedoc.co) (a dev-only package; nothing of it is deployed). To read it:
+
+- with Docker running, open http://localhost:8000/docs/api (local only), or
+- load the file into https://editor.swagger.io, Postman, Insomnia or a VS Code OpenAPI extension.
+
+After changing an API route, request or resource, regenerate it and commit the result:
 
 ```sh
-curl -X POST https://moviemov.id/api/movies \
-  -H 'Accept: application/json' -H 'Authorization: Bearer 1|abc...' \
-  -F title='My Movie' \
-  --form-string embed_url='https://vidara.to/e/8SdwOuKAAk92t' \
-  -F categories='Action, Drama' \
-  -F thumbnail=@thumb.jpg
+docker compose exec app php artisan scramble:export
 ```
 
-Use `--form-string` for `embed_url` when pasting iframe code: curl treats a `-F` value starting with `<` as a file.
-
-### Movie fields
-
-- `title`: required, max 255
-- `embed_url`: required, `https` only. A URL or the full `<iframe src="...">` embed code (its `src` is used).
-  `vidara.to/v/<id>` links are rewritten to the player URL `vidara.to/e/<id>`.
-- `thumbnail_url` (remote image URL) or `thumbnail` (file: jpg/png/webp, max 2 MB). 16:9 looks best.
-- `categories`: list of names (JSON array, or comma-separated in multipart). Unknown names are created.
-  On update, sending `categories` replaces the list; omitting it leaves it unchanged.
-- `slug`: optional, generated from the title
-- `synopsis`, `release_year`, `duration_minutes`: optional
-
-### Movie endpoints
-
-- `GET /movies?q=<search>&category=<slug>&sort=created|rating|views&per_page=24&page=1`: public list
-- `GET /movies/{slug}`: public detail
-- `POST /movies`: create (token)
-- `PUT|PATCH /movies/{slug}`: update with JSON (token)
-- `POST /movies/{slug}`: update with multipart, e.g. to replace the thumbnail file (token)
-- `DELETE /movies/{slug}`: delete (token)
-
-### Category endpoints
-
-- `GET /categories`: public list with `movies_count`
-- `GET /categories/{slug}`: public detail
-- `POST /categories`: create (token). Body: `name` (required), `slug` (optional), `description` (optional;
-  shown on the category page and used as its meta description)
-- `PUT|PATCH /categories/{slug}`: rename / change slug / description (token)
-- `DELETE /categories/{slug}`: delete (token). Movies are kept; they just lose that category.
-
-### Other
-
-- `GET /me`: current user (token)
-- `POST /logout`: revoke the current token
+`tests/Feature/OpenApiSpecTest.php` fails while the committed file is out of date.
 
 Only post content you have the rights to share.

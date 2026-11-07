@@ -1,6 +1,11 @@
-# MovieMov API reference
+# MovieMov API guide
 
 Base URL: `https://moviemov.id/api` (local: `http://localhost:8000/api`).
+
+This is the hands-on guide with curl examples. The complete, always-current reference is
+[`openapi.json`](openapi.json) (OpenAPI 3.1, generated from the code; open it at http://localhost:8000/docs/api with
+Docker running, or in https://editor.swagger.io). If the two ever disagree, `openapi.json` is right; please fix this
+guide.
 
 - Send `Accept: application/json` on every request, so errors come back as JSON instead of redirects.
 - Write endpoints need `Authorization: Bearer <token>` from `POST /login`. Only admin users can log in.

@@ -19,7 +19,7 @@ cp -r "$REPO/public/build" "$REL/public/"
 cp "$REPO/deploy/hostinger.htaccess" "$REL/.htaccess"
 rm -rf "$REL/tests" "$REL/docker" "$REL/compose.yaml" "$REL/phpunit.xml" "$REL/.editorconfig" \
        "$REL/.gitattributes" "$REL/.npmrc" "$REL/package.json" "$REL/package-lock.json" \
-       "$REL/vite.config.js" "$REL/resources/css"
+       "$REL/vite.config.js" "$REL/resources/css" "$REL/docs" "$REL/config/scramble.php"
 
 # 3. Production PHP dependencies
 docker run --rm -v "$REL:/app" -w /app web_movie-app composer install --no-dev --optimize-autoloader --no-interaction -q
