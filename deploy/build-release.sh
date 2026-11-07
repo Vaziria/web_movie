@@ -5,7 +5,7 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd -W 2>/dev/null || pwd)"
-OUT_DIR="${OUT_DIR:-$REPO/../web_movie_release}"
+OUT_DIR="${OUT_DIR:-$REPO/.release}"
 REL="$OUT_DIR/release"
 
 rm -rf "$REL" && mkdir -p "$REL"

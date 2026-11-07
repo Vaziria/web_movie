@@ -30,7 +30,7 @@ fail() { printf '\n\033[1;31mDEPLOY FAILED: %s\033[0m\n' "$*" >&2; exit 1; }
 HOSTINGER_USERNAME="${HOSTINGER_USERNAME:-u878125972}"
 HOSTINGER_DOMAIN="${HOSTINGER_DOMAIN:-moviemov.id}"
 SITE_URL="${SITE_URL:-https://$HOSTINGER_DOMAIN}"
-OUT_DIR="${OUT_DIR:-$REPO/../web_movie_release}"
+OUT_DIR="${OUT_DIR:-$REPO/.release}"
 if [ "$DRY_RUN" = 0 ] && [ -z "${HOSTINGER_API_TOKEN:-}" ]; then
   fail "HOSTINGER_API_TOKEN missing. Copy deploy/deploy.env.example to deploy/deploy.env and paste your token (hPanel > Account > API)."
 fi

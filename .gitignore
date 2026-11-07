@@ -29,3 +29,4 @@ Thumbs.db
 
 # Deploy secrets (Hostinger API token)
 /deploy/deploy.env
+/.release
