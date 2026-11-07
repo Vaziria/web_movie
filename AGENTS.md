@@ -18,6 +18,8 @@ Update it whenever the owner makes a decision.
   6. Categories, managed by admin through the API.
   7. Thumbnails (16:9) per movie.
   8. Strong SEO (sitemap, robots, meta/OG, JSON-LD, canonical URLs).
+  Added later by the owner: admin web panel, Indonesian + English site, backup players, broken-video reports,
+  duration sort with asc/desc, category filter that combines with search and sort.
 - Hermes bot for this repo: profile `web_movie`. Start it from the repo root so this file loads:
   `hermes -p web_movie --in D:/wargasipil/web_movie chat`
 
@@ -28,19 +30,32 @@ Update it whenever the owner makes a decision.
   Flat, minimal, dark, one red accent (`accent`), `ink-*` neutrals defined in `@theme`.
 - Logo: `public/favicon.svg` (red rounded square + white play triangle) + "MovieMov" wordmark. Also
   `favicon.ico`, `apple-touch-icon.png`, `og-default.png` (1200x630 share image). Placeholder until the owner sends one.
-- Web routes: `/` list, `/category/{slug}` list, `/movies/{slug}` player + rating, `/sitemap.xml`, `/robots.txt`.
-  Lists take `?q=` (search title/synopsis) and `?sort=created|rating|views`. Views count once per session per movie
-  (web page only, not the API).
+- Languages: Indonesian (default) at `/`, English under `/en` (`site_locales()`, `lroute()`, `current_url_in()` in
+  `app/helpers.php`; `SetLocale` middleware; strings in `lang/id.json`, English is the key). Every public route is
+  registered twice in `routes/web.php` (`movies.*` and `en.movies.*`); always build public links with `lroute()`.
+  Movie titles/synopses/category names are not translated. The admin panel is English only.
+- Web routes (same under `/en`): `/` list, `/category/{slug}` list, `/movies/{slug}` player + rating + report,
+  `POST /movies/{slug}/rate`, `POST /movies/{slug}/report`; plus `/sitemap.xml`, `/robots.txt`, `/admin`.
+  Lists take `?q=` (search title/synopsis), `?sort=created|rating|views|duration` and `?dir=asc|desc` (tapping the
+  active sort tab flips it; NULL values always sort last). Category chips keep `q`/`sort`/`dir`; searching on a
+  category page stays in that category. Views count once per session per movie (web page only, not the API).
+- Players: `embed_url` = Server 1, `backup_embed_urls` (JSON, max 5) = Server 2..N, switched with `?server=N`
+  (no JS). Visitors report a broken player ("Video tidak bisa diputar?"): `player_reports`, one per IP hash, movie
+  and server per day; admins see them at `/admin/reports` (nav badge) and `GET /api/reports`.
+- Duration: `duration_minutes`, shown as `1j 45m` / `1h 45m` on cards (`Movie::durationLabel()`).
+- Admin panel `/admin` (session login, `admin` middleware, throttle 5/min, noindex): movies (search + category
+  filter incl. "No category"), categories, reports.
 - SEO: per-page title/description, canonical (sorted variants canonicalise to the plain list; `?q=` pages are
   `noindex, follow`), OG + Twitter cards, JSON-LD (`WebSite`+`SearchAction` on home, `ItemList` on lists,
   `Movie`+`VideoObject`+`AggregateRating` and `BreadcrumbList` on movie pages). robots.txt disallows `/api/` and `?q=`.
   Production forces https URLs (`AppServiceProvider`).
 - API (`/api`), see README for full usage:
-  - Public: `GET /movies` (`q`, `sort`, `category`, `per_page`), `GET /movies/{slug}`, `GET /categories`,
+  - Public: `GET /movies` (`q`, `sort`, `dir`, `category`, `per_page`), `GET /movies/{slug}`, `GET /categories`,
     `GET /categories/{slug}`.
   - Admin token (Sanctum, from `POST /login`): `POST /movies`, `PUT|PATCH|POST /movies/{slug}`,
     `DELETE /movies/{slug}`, `POST /categories`, `PUT|PATCH /categories/{slug}`, `DELETE /categories/{slug}`,
-    `GET /me`, `POST /logout`.
+    `GET /reports`, `POST /reports/{slug}/resolve`, `GET /me`, `POST /logout`.
+  - Movies take `backup_embed_urls` (array of URLs or iframe codes; newline-separated in multipart).
   - Movies take `categories` (array, or comma-separated string in multipart); unknown names are created.
     Deleting a category detaches it; movies stay.
   - Thumbnail: `thumbnail_url` (remote) or `thumbnail` file upload (jpg/png/webp, max 2 MB) saved to
@@ -71,6 +86,18 @@ Record each decision as `- YYYY-MM-DD: <decision> (<why>)`.
 - 2026-11-07: Metadata (title, synopsis, thumbnail, categories) is supplied by the uploader via the API. No TMDB/OMDb.
 - 2026-11-07: Admin email defaults to `admin@moviemov.id` (owner did not want to pick one; no real mailbox needed).
 - 2026-11-07: Deploy to Hostinger shared hosting `moviemov.id` on PHP 8.4 (owner approved the PHP switch).
+- 2026-11-07: Admin web panel at `/admin` in addition to the API (owner request).
+- 2026-11-07: Indonesian is the default language at `/`, English under `/en`, with hreflang + both in the sitemap
+  (target audience is Indonesian phone users). Admin stays English.
+- 2026-11-07: Up to 5 backup players per movie and a visitor "broken video" report, reviewed by the admin.
+- 2026-11-07: Sort by duration; every sort can be reversed with `dir`. Indonesian "Most viewed" tab is "Populer"
+  so all four tabs fit on a phone.
+- 2026-11-07: Category filter combines with search and sort; admin movie list filters by category.
+- 2026-11-07: Schema changes on production go in new migrations only (production already has data/tables).
+- 2026-11-07: Deploy policy: normally only the owner deploys (`deploy.cmd`; see `docs/DEPLOY.md`). Temporary
+  exception from the owner: the agent may deploy on 2026-11-07 and 2026-11-08 through the Hostinger MCP
+  (build-release.sh + upload + runner). From 2026-11-09 the agent stops at `deploy.cmd --dry-run` again unless the
+  owner extends it.
 
 ## Deployment (Hostinger)
 
@@ -86,7 +113,7 @@ Docs for humans: `docs/API.md`, `docs/ADMIN.md`. Keep them in sync when the API 
   (`deploy/build-release.sh`), uploading it plus a randomly named copy of `deploy/deploy-runner.php` into
   `public_html/public/` with the Hostinger file-upload API, and requesting the runner once over HTTPS. It extracts,
   migrates, caches and deletes itself. PHP CLI on the server (for reference): `/opt/alt/php84/usr/bin/php`.
-- First deploy done 2026-11-07 (commit f8dd80c). Production admin credentials are in the gitignored
+- First deploy done 2026-11-07 (commit f8dd80c); latest ef1ac13. Production admin credentials are in the gitignored
   `storage/app/private/production-admin.txt` on the owner's PC.
 - Never overwrite `public_html/.env` or `public_html/public/uploads/` on redeploy.
 
