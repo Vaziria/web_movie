@@ -35,6 +35,10 @@ one-time PHP script (`deploy/deploy-runner.php`) that runs over HTTPS. The scrip
 
 ## One-command redeploy (recommended)
 
+**Only the owner deploys.** AI agents working on this repo have no Hostinger access and must not deploy; they stop
+at `deploy.cmd --dry-run`. A real deploy needs an interactive terminal and the domain typed by hand, so it cannot be
+started by a script or an agent.
+
 One-time setup:
 
 1. Install/keep running: **Git for Windows** (git-bash), **Docker Desktop**, **Python**.

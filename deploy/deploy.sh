@@ -35,6 +35,18 @@ if [ "$DRY_RUN" = 0 ] && [ -z "${HOSTINGER_API_TOKEN:-}" ]; then
   fail "HOSTINGER_API_TOKEN missing. Copy deploy/deploy.env.example to deploy/deploy.env and paste your token (hPanel > Account > API)."
 fi
 
+# ---- human confirmation (real deploys only) ----------------------------------
+# Owner decision: only the owner deploys. A real deploy needs an interactive terminal and the domain typed by hand,
+# so scripts and AI agents (which run without a TTY) cannot deploy. --dry-run never uploads and skips this.
+if [ "$DRY_RUN" = 0 ]; then
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    fail "a real deploy must be started by a person in an interactive terminal (double-click deploy.cmd). Use --dry-run for automated checks."
+  fi
+  printf '\nThis will deploy to PRODUCTION (%s).\nType the domain to continue: ' "$SITE_URL"
+  read -r CONFIRM
+  [ "$CONFIRM" = "$HOSTINGER_DOMAIN" ] || fail "confirmation did not match; nothing was deployed."
+fi
+
 # ---- preflight --------------------------------------------------------------
 say "Preflight"
 docker info >/dev/null 2>&1 || fail "Docker is not running. Start Docker Desktop and try again."
