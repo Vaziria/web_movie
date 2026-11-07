@@ -7,6 +7,7 @@ use App\Http\Requests\MovieRequest;
 use App\Http\Requests\UpdateMovieRequest;
 use App\Http\Resources\MovieResource;
 use App\Models\Movie;
+use App\Models\Tag;
 use App\Services\MovieWriter;
 use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +21,8 @@ class MovieController extends Controller
     /**
      * List movies
      *
-     * Public list of published movies, 24 per page. Filters combine freely (`q` + `category` + `sort` + `dir`).
+     * Public list of published movies, 24 per page. Filters combine freely (`q` + `category` + `tags` + `sort` +
+     * `dir`).
      * With an admin token, `status` also lists drafts and scheduled movies.
      *
      * @unauthenticated
@@ -46,6 +48,12 @@ class MovieController extends Controller
              */
             'category' => ['sometimes', 'nullable', 'string', 'max:120'],
             /**
+             * Tag slugs, comma separated (max 5). A movie must have **all** of them.
+             *
+             * @example korea,zombie
+             */
+            'tags' => ['sometimes', 'nullable', 'string', 'max:300'],
+            /**
              * Reverse the sort with `asc` (e.g. `sort=duration&dir=asc` = shortest first). Default `desc`.
              * Movies without a value (e.g. no duration) are always last.
              */
@@ -70,9 +78,15 @@ class MovieController extends Controller
         abort_if($status !== 'published' && ! $request->user('sanctum')?->is_admin, 403, 'Only admins can list drafts and scheduled movies.');
 
         $movies = Movie::query()
-            ->with('categories')
+            ->with('categories', 'tags')
             ->status($status)
-            ->browse($request->string('q')->toString(), $request->string('sort')->toString(), $request->string('category')->toString(), $request->string('dir')->toString() ?: null)
+            ->browse(
+                $request->string('q')->toString(),
+                $request->string('sort')->toString(),
+                $request->string('category')->toString(),
+                $request->string('dir')->toString() ?: null,
+                Tag::parseFilter($request->query('tags')),
+            )
             ->paginate($request->integer('per_page', 24))
             ->withQueryString();
 
@@ -90,7 +104,7 @@ class MovieController extends Controller
     {
         abort_unless($movie->isPublished() || $request->user('sanctum')?->is_admin, 404);
 
-        return new MovieResource($movie->load('categories'));
+        return new MovieResource($movie->load('categories', 'tags'));
     }
 
     /**

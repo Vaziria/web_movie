@@ -11,13 +11,14 @@
 <body class="min-h-dvh bg-ink-950 font-sans text-neutral-200 antialiased">
 @auth
     <header class="border-b border-ink-800 bg-ink-900">
-        <div class="mx-auto flex max-w-5xl items-center gap-4 overflow-x-auto px-4 text-sm">
+        <div class="mx-auto flex max-w-5xl items-center gap-4 overflow-x-auto px-4 text-sm [scrollbar-width:none]">
             <a href="{{ route('admin.movies.index') }}" class="flex shrink-0 items-center gap-2 py-3">
                 <img src="{{ asset('favicon.svg') }}" alt="" width="24" height="24" class="size-6">
                 <span class="font-semibold text-white">Admin</span>
             </a>
             <a href="{{ route('admin.movies.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.movies.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.movies.*')])>Movies</a>
             <a href="{{ route('admin.categories.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.categories.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.categories.*')])>Categories</a>
+            <a href="{{ route('admin.tags.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.tags.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.tags.*')])>Tags</a>
             @php $openReports = \App\Models\PlayerReport::openMovieCount(); @endphp
             <a href="{{ route('admin.reports.index') }}" @class(['inline-flex shrink-0 items-center gap-1.5 py-3', 'text-white' => request()->routeIs('admin.reports.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.reports.*')])>
                 Reports

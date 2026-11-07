@@ -72,6 +72,16 @@
         </div>
 
         <div>
+            <label for="tags" class="{{ $label }}">Tags</label>
+            <input id="tags" name="tags" value="{{ old('tags', $movie->tags?->pluck('name')->join(', ')) }}"
+                   placeholder="Korea, Tom Hanks, Zombie" class="{{ $input }} h-11">
+            <p class="mt-1 text-xs text-neutral-500">
+                Comma separated keywords (actor, country, mood ...), max {{ \App\Models\Tag::MAX_PER_MOVIE }}. Each gets a page /tag/name.
+                @if ($popularTags->isNotEmpty()) Used: {{ $popularTags->join(', ') }}. @endif
+            </p>
+        </div>
+
+        <div>
             <label for="synopsis" class="{{ $label }}">Synopsis</label>
             <textarea id="synopsis" name="synopsis" rows="5" maxlength="10000" class="{{ $input }} py-2">{{ old('synopsis', $movie->synopsis) }}</textarea>
             <p class="mt-1 text-xs text-neutral-500">The first ~155 characters become the Google description.</p>

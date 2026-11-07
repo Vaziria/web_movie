@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Movie;
+use App\Models\Tag;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -35,10 +36,18 @@ class MovieRequest extends FormRequest
             ))]);
         }
 
-        // Multipart forms send categories as "Action, Drama"; JSON sends an array.
-        $categories = $this->input('categories');
-        if (is_string($categories)) {
-            $this->merge(['categories' => array_values(array_filter(array_map('trim', explode(',', $categories))))]);
+        // Multipart forms send categories and tags as "Action, Drama"; JSON sends arrays. Blank entries are dropped.
+        foreach (['categories', 'tags'] as $list) {
+            $value = $this->input($list);
+            if (is_string($value)) {
+                $value = explode(',', $value);
+            }
+            if (is_array($value)) {
+                $this->merge([$list => array_values(array_filter(
+                    array_map(fn ($v) => is_string($v) ? trim($v) : $v, $value),
+                    fn ($v) => $v !== '' && $v !== null,
+                ))]);
+            }
         }
 
         // A thumbnail file wins over a URL. In the admin form an empty URL box means "keep the current thumbnail"
@@ -140,6 +149,18 @@ class MovieRequest extends FormRequest
              */
             'categories' => ['sometimes', 'nullable', 'array', 'max:10'],
             'categories.*' => ['string', 'max:100'],
+            /**
+             * Tags: free keywords such as an actor, country or mood (max 20, each max 50 characters). JSON: an
+             * array. Multipart: comma separated (`Korea, Tom Hanks`). Matched by slug (`tom hanks` = `Tom Hanks`);
+             * unknown names create a tag. On update the list replaces the old one (`[]` clears it); leave it out
+             * to keep the tags. Each tag gets a page at `/tag/{slug}`.
+             *
+             * @var string[]|null
+             *
+             * @example ["Korea", "Zombie"]
+             */
+            'tags' => ['sometimes', 'nullable', 'array', 'max:'.Tag::MAX_PER_MOVIE],
+            'tags.*' => ['string', 'max:50'],
             /** Update only: `true` removes the current thumbnail. */
             'remove_thumbnail' => ['sometimes', 'boolean'],
             /**

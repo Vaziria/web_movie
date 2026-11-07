@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /** Admin: open broken-player reports, grouped per movie. */
-#[Group('Reports', 'Visitor "Video not working?" reports. Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`.', weight: 3)]
+#[Group('Reports', 'Visitor "Video not working?" reports. Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`.', weight: 4)]
 class ReportController extends Controller
 {
     /**

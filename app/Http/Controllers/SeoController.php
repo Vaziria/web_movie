@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Movie;
+use App\Models\Tag;
 use Illuminate\Http\Response;
 
 class SeoController extends Controller
@@ -22,6 +23,14 @@ class SeoController extends Controller
             ->each(fn (Category $c) => $pages->push([
                 'route' => 'movies.category', 'params' => $c,
                 'lastmod' => $c->movies_max_moviesupdated_at, 'changefreq' => 'daily', 'priority' => '0.8',
+            ]));
+
+        Tag::query()->inUse()->orderBy('name')
+            ->withMax(['movies' => fn ($m) => $m->published()], 'movies.updated_at')
+            ->get()
+            ->each(fn (Tag $t) => $pages->push([
+                'route' => 'movies.tag', 'params' => $t,
+                'lastmod' => $t->movies_max_moviesupdated_at, 'changefreq' => 'weekly', 'priority' => '0.5',
             ]));
 
         Movie::query()->published()->latest('id')->limit(20000)->get(['slug', 'updated_at'])

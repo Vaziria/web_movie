@@ -21,6 +21,8 @@ Two ways to manage the site:
    - *Thumbnail*: upload a 16:9 image (jpg/png/webp, max 2 MB) or give an image URL. Leaving both empty keeps the
      current one; tick *Remove current thumbnail* to delete it.
    - *Categories*: comma separated (`Action, Drama`). New names are created; existing names are listed under the box.
+   - *Tags*: comma separated keywords that are more specific than categories: actors, country, mood, series
+     (`Korea, Tom Hanks, Zombie`), max 20. New tags are created; the most used ones are listed under the box.
    - *URL slug*: leave empty to generate it from the title. Don't change it after the page is indexed.
    - **Delete movie** is at the bottom of the edit page.
 3. **Reports** (badge = number of movies with open reports): visitors press "Video not working?" under the
@@ -28,7 +30,9 @@ Two ways to manage the site:
    broken embed (or add a backup player), then **Mark fixed**. Movies with open reports also show a red
    "⚠ broken-video report" line in the movie list. One report per visitor, movie and server per day.
 4. **Categories**: create, rename, set the slug and description, or delete (movies are kept).
-5. **Log out** when you are done on a shared device.
+5. **Tags**: most used first with their movie count. **Movies** shows the movies with that tag; **Edit** renames
+   it, changes the slug, or deletes it (movies are kept).
+6. **Log out** when you are done on a shared device.
 
 The panel is hidden from search engines (`noindex`, and `/admin` is disallowed in robots.txt). Login is limited to
 5 attempts per minute.
@@ -75,7 +79,8 @@ The response's `data.url` is the public page.
 
 - Change fields: `PATCH /api/movies/{slug}` with JSON, e.g. `{"title": "Night Train (Director's Cut)"}`.
 - New thumbnail file: `POST /api/movies/{slug}` with `-F thumbnail=@file.jpg`.
-- Set categories: send the full list, e.g. `{"categories": ["Drama"]}`. Send `[]` to clear.
+- Set categories or tags: send the full list, e.g. `{"categories": ["Drama"], "tags": ["Korea", "Zombie"]}`. Send
+  `[]` to clear.
 - Delete: `DELETE /api/movies/{slug}`.
 
 ## Manage categories
@@ -86,6 +91,16 @@ The response's `data.url` is the public page.
 - Delete: `DELETE /api/categories/{slug}` (movies stay, they just lose this category)
 
 Categories with no movies are hidden from the site menu and the sitemap.
+
+## Manage tags
+
+- List: `GET /api/tags` (add `?all=1` with your token to include unused tags)
+- Create: `POST /api/tags` with `name` (tags are also created by a movie's `tags` field)
+- Rename: `PATCH /api/tags/{slug}` with `name` and/or `slug`
+- Delete: `DELETE /api/tags/{slug}` (movies stay)
+
+Every tag with a published movie gets a page (`/tag/korea`) in the sitemap, so tags also bring search traffic:
+prefer a few well-known keywords (actor names, country, franchise) over one-off words.
 
 ## Home page
 
@@ -98,9 +113,14 @@ Each row has "Lihat semua" to the full sorted list. Drafts and scheduled movies 
 
 ## What visitors can filter
 
-Category chips (Semua / Action / Drama ...), sort tabs (Terbaru, Trending, Rating, Populer, Durasi; tap the active
-tab again to reverse) and search all combine: picking a category keeps the sort and search, and searching on a
-category page searches inside that category. A chip only appears once its category has at least one movie.
+Category chips (Semua / Action / Drama ...), tag chips (the 15 most used tags), sort tabs (Terbaru, Trending,
+Rating, Populer, Durasi; tap the active tab again to reverse) and search all combine: picking a category keeps the
+sort, search and tags, and searching on a category or tag page searches inside it. Tapping tags adds them, so
+`#Korea` + `#Zombie` shows movies that have **both**; tap an active tag (`#Korea ×`) to remove it. A chip only
+appears once its category or tag has at least one published movie.
+
+Google indexes the plain list, category pages and single-tag pages (`/tag/korea`). Searches and combined filters
+(two tags, or a category plus a tag) are `noindex` so they never compete with those pages.
 
 ## Languages
 

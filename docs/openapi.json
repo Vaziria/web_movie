@@ -29,6 +29,10 @@
             "description": "Categories shown as chips and `/category/{slug}` pages. `movies_count` counts published movies."
         },
         {
+            "name": "Tags",
+            "description": "Free keywords on movies (actor, country, mood ...) with pages at `/tag/{slug}`. Tags are also created automatically from a movie's `tags` field. `movies_count` counts published movies."
+        },
+        {
             "name": "Reports",
             "description": "Visitor \"Video not working?\" reports. Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`."
         }
@@ -209,7 +213,7 @@
         "/movies": {
             "get": {
                 "operationId": "movies.index",
-                "description": "Public list of published movies, 24 per page. Filters combine freely (`q` + `category` + `sort` + `dir`).\nWith an admin token, `status` also lists drafts and scheduled movies.",
+                "description": "Public list of published movies, 24 per page. Filters combine freely (`q` + `category` + `tags` + `sort` +\n`dir`).\nWith an admin token, `status` also lists drafts and scheduled movies.",
                 "summary": "List movies",
                 "tags": [
                     "Movies"
@@ -259,6 +263,19 @@
                             "maxLength": 120
                         },
                         "example": "sci-fi"
+                    },
+                    {
+                        "name": "tags",
+                        "in": "query",
+                        "description": "Tag slugs, comma separated (max 5). A movie must have **all** of them.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 300
+                        },
+                        "example": "korea,zombie"
                     },
                     {
                         "name": "dir",
@@ -325,7 +342,8 @@
                                                     {
                                                         "type": "object",
                                                         "required": [
-                                                            "categories"
+                                                            "categories",
+                                                            "tags"
                                                         ]
                                                     }
                                                 ]
@@ -523,7 +541,8 @@
                                                 {
                                                     "type": "object",
                                                     "required": [
-                                                        "categories"
+                                                        "categories",
+                                                        "tags"
                                                     ]
                                                 }
                                             ]
@@ -583,7 +602,8 @@
                                                 {
                                                     "type": "object",
                                                     "required": [
-                                                        "categories"
+                                                        "categories",
+                                                        "tags"
                                                     ]
                                                 }
                                             ]
@@ -650,7 +670,8 @@
                                                 {
                                                     "type": "object",
                                                     "required": [
-                                                        "categories"
+                                                        "categories",
+                                                        "tags"
                                                     ]
                                                 }
                                             ]
@@ -725,7 +746,8 @@
                                                 {
                                                     "type": "object",
                                                     "required": [
-                                                        "categories"
+                                                        "categories",
+                                                        "tags"
                                                     ]
                                                 }
                                             ]
@@ -800,7 +822,8 @@
                                                 {
                                                     "type": "object",
                                                     "required": [
-                                                        "categories"
+                                                        "categories",
+                                                        "tags"
                                                     ]
                                                 }
                                             ]
@@ -1332,6 +1355,436 @@
                 }
             }
         },
+        "/tags": {
+            "get": {
+                "operationId": "tags.index",
+                "description": "Tags used by at least one published movie, most used first. With an admin token, `all=1` also lists unused\ntags.",
+                "summary": "List tags",
+                "tags": [
+                    "Tags"
+                ],
+                "parameters": [
+                    {
+                        "name": "all",
+                        "in": "query",
+                        "description": "Admin token only: `1` also lists tags without published movies.",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
+                                                    "movies_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "url": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "name",
+                                                    "slug",
+                                                    "movies_count",
+                                                    "url"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                },
+                "security": []
+            },
+            "post": {
+                "operationId": "tags.store",
+                "description": "`slug` is generated from `name` when left out. Usually not needed: posting a movie with a new tag name\ncreates the tag.",
+                "summary": "Create a tag",
+                "tags": [
+                    "Tags"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TagRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/tags/{tag}": {
+            "get": {
+                "operationId": "tags.show",
+                "summary": "Get a tag",
+                "tags": [
+                    "Tags"
+                ],
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "description": "The tag slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                },
+                "security": []
+            },
+            "patch": {
+                "operationId": "tags.update",
+                "description": "Rename it or change its `slug` (this changes the tag page URL).",
+                "summary": "Update a tag",
+                "tags": [
+                    "Tags"
+                ],
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "description": "The tag slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTagRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "put": {
+                "operationId": "tags.update.put",
+                "description": "Rename it or change its `slug` (this changes the tag page URL).",
+                "summary": "Update a tag",
+                "tags": [
+                    "Tags"
+                ],
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "description": "The tag slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateTagRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                },
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "slug": {
+                                                    "type": "string"
+                                                },
+                                                "movies_count": {
+                                                    "type": "integer"
+                                                },
+                                                "url": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "id",
+                                                "name",
+                                                "slug",
+                                                "movies_count",
+                                                "url"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "tags.destroy",
+                "description": "The tag is removed from its movies; the movies themselves are kept.",
+                "summary": "Delete a tag",
+                "tags": [
+                    "Tags"
+                ],
+                "parameters": [
+                    {
+                        "name": "tag",
+                        "in": "path",
+                        "required": true,
+                        "description": "The tag slug",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
         "/reports": {
             "get": {
                 "operationId": "reports.index",
@@ -1666,6 +2119,23 @@
                             "maxLength": 100
                         }
                     },
+                    "tags": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Tags: free keywords such as an actor, country or mood (max 20, each max 50 characters). JSON: an\narray. Multipart: comma separated (`Korea, Tom Hanks`). Matched by slug (`tom hanks` = `Tom Hanks`);\nunknown names create a tag. On update the list replaces the old one (`[]` clears it); leave it out\nto keep the tags. Each tag gets a page at `/tag/{slug}`.",
+                        "examples": [
+                            [
+                                "Korea",
+                                "Zombie"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        }
+                    },
                     "remove_thumbnail": {
                         "type": "boolean",
                         "description": "Update only: `true` removes the current thumbnail."
@@ -1765,6 +2235,25 @@
                             ]
                         }
                     },
+                    "tags": {
+                        "type": "array",
+                        "description": "Tags (`/tag/{slug}` pages).",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "slug"
+                            ]
+                        }
+                    },
                     "views": {
                         "type": "integer",
                         "description": "Website page views, one per visitor session (API reads do not count)."
@@ -1833,6 +2322,32 @@
                     "updated_at"
                 ],
                 "title": "MovieResource"
+            },
+            "TagRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Tag name as shown on the site (`#Korea`).",
+                        "examples": [
+                            "Korea"
+                        ],
+                        "maxLength": 50
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL of the tag page (`/tag/{slug}`): lowercase letters, digits and single dashes, unique. Generated\nfrom `name` when left out. Changing it changes the page URL.",
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        "examples": [
+                            "korea"
+                        ],
+                        "maxLength": 60
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "title": "TagRequest"
             },
             "UpdateCategoryRequest": {
                 "type": "object",
@@ -1986,6 +2501,23 @@
                             "maxLength": 100
                         }
                     },
+                    "tags": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "description": "Tags: free keywords such as an actor, country or mood (max 20, each max 50 characters). JSON: an\narray. Multipart: comma separated (`Korea, Tom Hanks`). Matched by slug (`tom hanks` = `Tom Hanks`);\nunknown names create a tag. On update the list replaces the old one (`[]` clears it); leave it out\nto keep the tags. Each tag gets a page at `/tag/{slug}`.",
+                        "examples": [
+                            [
+                                "Korea",
+                                "Zombie"
+                            ]
+                        ],
+                        "items": {
+                            "type": "string",
+                            "maxLength": 50
+                        }
+                    },
                     "remove_thumbnail": {
                         "type": "boolean",
                         "description": "Update only: `true` removes the current thumbnail."
@@ -2014,6 +2546,30 @@
                     }
                 },
                 "title": "UpdateMovieRequest"
+            },
+            "UpdateTagRequest": {
+                "type": "object",
+                "description": "Updating a tag: all fields optional. Separate class so the generated API docs show that.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Tag name as shown on the site (`#Korea`).",
+                        "examples": [
+                            "Korea"
+                        ],
+                        "maxLength": 50
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "URL of the tag page (`/tag/{slug}`): lowercase letters, digits and single dashes, unique. Generated\nfrom `name` when left out. Changing it changes the page URL.",
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+                        "examples": [
+                            "korea"
+                        ],
+                        "maxLength": 60
+                    }
+                },
+                "title": "UpdateTagRequest"
             }
         },
         "responses": {

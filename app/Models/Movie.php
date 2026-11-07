@@ -192,6 +192,11 @@ class Movie extends Model
         return $this->belongsToMany(Category::class)->orderBy('name');
     }
 
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)->orderBy('name');
+    }
+
     /** Live on the public site: published_at is set and not in the future. */
     public function scopePublished(Builder $query): Builder
     {
@@ -274,10 +279,13 @@ class Movie extends Model
     }
 
     /**
-     * Apply search, category filter and sort. Unknown sort keys fall back to "created"; $direction ("asc"/"desc")
-     * overrides the sort's default. Movies without a value for the sort column (e.g. no duration) always go last.
+     * Apply search, category filter, tag filter and sort. Unknown sort keys fall back to "created"; $direction
+     * ("asc"/"desc") overrides the sort's default. Movies without a value for the sort column (e.g. no duration)
+     * always go last. $tags: slugs; a movie must have every one of them.
+     *
+     * @param  array<int, string>  $tags
      */
-    public function scopeBrowse(Builder $query, ?string $search, ?string $sort, ?string $category = null, ?string $direction = null): Builder
+    public function scopeBrowse(Builder $query, ?string $search, ?string $sort, ?string $category = null, ?string $direction = null, array $tags = []): Builder
     {
         if (filled($search)) {
             $term = '%'.addcslashes(trim($search), '%_\\').'%';
@@ -288,6 +296,10 @@ class Movie extends Model
 
         if (filled($category)) {
             $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
+        }
+
+        foreach (array_unique($tags) as $tag) {
+            $query->whereHas('tags', fn (Builder $q) => $q->where('slug', $tag));
         }
 
         $sort = array_key_exists((string) $sort, self::SORTS) ? $sort : 'created';

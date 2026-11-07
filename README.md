@@ -2,8 +2,9 @@
 
 Mobile-first movie site (Laravel 13 + Blade + Tailwind CSS + MySQL), in Indonesian (`/`) and English (`/en`).
 Movies play through an embedded external player (iframe) with optional backup servers, and visitors can report a
-broken video. Visitors can browse by category, search, sort by newest / trending / rating / most viewed / duration (either direction), and rate 1-5
-without an account. Posts (publish now, draft or scheduled) and categories are managed in the admin panel (`/admin`) or
+broken video. Visitors can browse by category and by tags (several combined), search, sort by newest / trending /
+rating / most viewed / duration (either direction), and rate 1-5 without an account. Posts (publish now, draft or
+scheduled), categories and tags are managed in the admin panel (`/admin`) or
 through an admin-only JSON API.
 
 ## Documentation
@@ -51,10 +52,10 @@ TOKEN=$(curl -s -X POST https://moviemov.id/api/login -H 'Accept: application/js
 # 2. Post a movie: embed_url may be the player URL or the whole <iframe> code
 curl -X POST https://moviemov.id/api/movies \
   -H 'Accept: application/json' -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" \
-  -d '{"title":"Night Train","embed_url":"<iframe src=\"https://vidara.to/e/XXXX\"></iframe>","categories":["Drama"],"duration_minutes":104}'
+  -d '{"title":"Night Train","embed_url":"<iframe src=\"https://vidara.to/e/XXXX\"></iframe>","categories":["Drama"],"tags":["Korea"],"duration_minutes":104}'
 ```
 
-Everything else (thumbnail upload, backup players, drafts and scheduled posts, updates, categories, reports) is in
+Everything else (thumbnail upload, backup players, drafts and scheduled posts, updates, categories, tags, reports) is in
 [docs/API.md](docs/API.md) and [docs/openapi.json](docs/openapi.json).
 
 ### API reference (OpenAPI)

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Http\Requests\MovieRequest;
 use App\Models\Category;
 use App\Models\Movie;
+use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -27,15 +28,18 @@ class MovieWriter
             if ($request->has('categories')) {
                 $movie->categories()->sync(Category::idsForNames($request->validated('categories') ?? []));
             }
+            if ($request->has('tags')) {
+                $movie->tags()->sync(Tag::idsForNames($request->validated('tags') ?? []));
+            }
 
-            return $movie->refresh()->load('categories');
+            return $movie->refresh()->load('categories', 'tags');
         });
     }
 
     /** Validated movie columns, with an uploaded thumbnail file turned into its public path. */
     private function attributes(MovieRequest $request, ?Movie $movie): array
     {
-        $data = collect($request->validated())->except(['thumbnail', 'categories', 'remove_thumbnail', 'status', 'published_at'])->all();
+        $data = collect($request->validated())->except(['thumbnail', 'categories', 'tags', 'remove_thumbnail', 'status', 'published_at'])->all();
         $data += $this->publishing($request, $movie);
 
         if ($request->file('thumbnail') instanceof UploadedFile) {

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\CategoryController as AdminCategories;
 use App\Http\Controllers\Admin\MovieController as AdminMovies;
 use App\Http\Controllers\Admin\ReportController as AdminReports;
+use App\Http\Controllers\Admin\TagController as AdminTags;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\SeoController;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 $public = function () {
     Route::get('/', [MovieController::class, 'index'])->name('movies.index');
     Route::get('/category/{category}', [MovieController::class, 'category'])->name('movies.category');
+    Route::get('/tag/{tag}', [MovieController::class, 'tag'])->name('movies.tag');
     Route::get('/movies/{movie}', [MovieController::class, 'show'])->name('movies.show');
     Route::post('/movies/{movie}/rate', [MovieController::class, 'rate'])
         ->middleware('throttle:20,1')
@@ -39,6 +41,7 @@ Route::prefix('admin')->name('admin.')->middleware('locale:en')->group(function 
         Route::redirect('/', '/admin/movies');
         Route::resource('movies', AdminMovies::class)->except('show');
         Route::resource('categories', AdminCategories::class)->except('show');
+        Route::resource('tags', AdminTags::class)->except('show');
         Route::get('/reports', [AdminReports::class, 'index'])->name('reports.index');
         Route::post('/reports/{movie}/resolve', [AdminReports::class, 'resolve'])->name('reports.resolve');
     });

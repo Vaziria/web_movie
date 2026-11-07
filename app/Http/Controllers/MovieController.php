@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Movie;
 use App\Models\PlayerReport;
+use App\Models\Tag;
 use App\Services\RatingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,15 +24,50 @@ class MovieController extends Controller
 
     public function index(Request $request): View
     {
-        return $this->listing($request, null);
+        return $this->listing($request, null, null);
     }
 
     public function category(Request $request, Category $category): View
     {
-        return $this->listing($request, $category);
+        return $this->listing($request, $category, null);
     }
 
-    private function listing(Request $request, ?Category $category): View
+    public function tag(Request $request, Tag $tag): View
+    {
+        return $this->listing($request, null, $tag);
+    }
+
+    /**
+     * Where a filter combination lives: [base URL, extra query]. One tag on its own is the indexed /tag/{slug}
+     * page; otherwise tags go in ?tags=a,b on the home or category page.
+     *
+     * @param  array<int, string>  $tagSlugs
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function listTarget(?Category $category, array $tagSlugs, ?string $locale = null): array
+    {
+        $tagSlugs = array_values(array_unique($tagSlugs));
+        if (! $category && count($tagSlugs) === 1) {
+            return [lroute('movies.tag', $tagSlugs[0], $locale), []];
+        }
+        $base = $category ? lroute('movies.category', $category, $locale) : lroute('movies.index', [], $locale);
+
+        return [$base, $tagSlugs ? ['tags' => implode(',', $tagSlugs)] : []];
+    }
+
+    /**
+     * @param  array<int, string>  $tagSlugs
+     * @param  array<string, mixed>  $query
+     */
+    private function listUrl(?Category $category, array $tagSlugs, array $query = [], ?string $locale = null): string
+    {
+        [$base, $extra] = $this->listTarget($category, $tagSlugs, $locale);
+        $query = array_filter($extra + $query, fn ($v) => $v !== null && $v !== '');
+
+        return $base.($query ? '?'.str_replace('%2C', ',', http_build_query($query)) : '');
+    }
+
+    private function listing(Request $request, ?Category $category, ?Tag $pathTag): View
     {
         $q = Str::limit(trim((string) $request->query('q', '')), 100, '');
         $sort = array_key_exists((string) $request->query('sort'), Movie::SORTS) ? (string) $request->query('sort') : 'created';
@@ -39,44 +75,69 @@ class MovieController extends Controller
         $defaultDir = Movie::SORTS[$sort][1];
         $dir = in_array($request->query('dir'), ['asc', 'desc'], true) ? (string) $request->query('dir') : $defaultDir;
 
+        // Active tags: the /tag/{slug} one plus ?tags=a,b (a movie must have all of them). Unknown slugs are ignored.
+        $wanted = Tag::parseFilter($request->query('tags'));
+        if ($pathTag) {
+            array_unshift($wanted, $pathTag->slug);
+        }
+        $wanted = array_slice(array_values(array_unique($wanted)), 0, Tag::MAX_FILTER);
+        $found = $wanted ? Tag::query()->whereIn('slug', $wanted)->get()->keyBy('slug') : collect();
+        $activeTags = collect($wanted)->map(fn ($slug) => $found->get($slug))->filter()->values();
+        $tagSlugs = $activeTags->pluck('slug')->all();
+
         $movies = Movie::query()
             ->published()
-            ->browse($q, $sort, $category?->slug, $dir)
+            ->browse($q, $sort, $category?->slug, $dir, $tagSlugs)
             ->paginate(24)
             ->withQueryString();
 
         $categories = Category::query()->whereHas('movies', fn ($m) => $m->published())->orderBy('name')->get(['id', 'name', 'slug']);
 
+        // Tag chips: the active tags first (tap to remove), then the most used ones (tap to add).
+        $popularTags = Tag::query()->inUse()->orderByDesc('movies_count')->orderBy('name')->limit(15)->get();
+        $tagChips = $activeTags->concat($popularTags->reject(fn (Tag $t) => in_array($t->slug, $tagSlugs, true)))->values();
+
         // Home page only (no filter, default sort, page 1): "Trending this week" and "Top rated" rows above the grid.
         $sections = [];
-        if (! $category && $q === '' && $sort === 'created' && $dir === $defaultDir && $page === 1) {
+        if (! $category && ! $tagSlugs && $q === '' && $sort === 'created' && $dir === $defaultDir && $page === 1) {
             $sections = $this->homeSections();
         }
 
         $name = config('app.name');
-        $heading = $category
-            ? __(':name movies', ['name' => $category->name])
-            : ($q !== '' ? __('Search: :q', ['q' => $q]) : ($sort === 'created' ? __('Latest movies') : __('All movies')));
+        $soloTag = ! $category && count($tagSlugs) === 1 ? $activeTags->first() : null;
+        $heading = match (true) {
+            $category !== null => __(':name movies', ['name' => $category->name]),
+            $tagSlugs !== [] => __('Movies tagged :names', ['names' => $activeTags->pluck('name')->join(' + ')]),
+            $q !== '' => __('Search: :q', ['q' => $q]),
+            $sort === 'created' => __('Latest movies'),
+            default => __('All movies'),
+        };
 
-        // Sort variants duplicate the main list, so they all point at it; search results are not indexed.
-        $urlIn = function (string $locale) use ($category, $page) {
-            $base = $category ? lroute('movies.category', $category, $locale) : lroute('movies.index', [], $locale);
+        // Indexed: the plain list, category pages and single-tag pages. Search results and combined filters are
+        // noindex. Sort variants duplicate their list, so the canonical URL drops sort/dir.
+        $indexable = $q === '' && ($category ? $tagSlugs === [] : count($tagSlugs) <= 1);
+        $urlIn = fn (string $locale) => $this->listUrl($category, $tagSlugs, ['page' => $page > 1 ? $page : null], $locale);
 
-            return $page > 1 ? $base.'?page='.$page : $base;
+        $title = match (true) {
+            $category !== null && $tagSlugs === [] => __(':name Movies - Watch Online | :site', ['name' => $category->name, 'site' => $name]),
+            $soloTag !== null => __(':name Movies - Watch Online | :site', ['name' => $soloTag->name, 'site' => $name]),
+            $tagSlugs !== [] => $heading.' | '.$name,
+            $q !== '' => __('Search ":q" | :site', ['q' => $q, 'site' => $name]),
+            default => __(':site - Watch Movies Online', ['site' => $name]),
+        };
+        $listName = $category?->name ?? $soloTag?->name;
+        $description = match (true) {
+            $category?->description !== null && $category->description !== '' => Str::limit(trim(preg_replace('/\s+/', ' ', $category->description)), 155),
+            $listName !== null => __('Watch :name movies online on :site. Browse the newest, top rated and most viewed :name titles.', ['name' => $listName, 'site' => $name]),
+            default => __('Watch movies online on :site. Browse the newest, top rated and most viewed movies by category.', ['site' => $name]),
         };
 
         $seo = [
-            'title' => $category
-                ? __(':name Movies - Watch Online | :site', ['name' => $category->name, 'site' => $name])
-                : ($q !== '' ? __('Search ":q" | :site', ['q' => $q, 'site' => $name]) : __(':site - Watch Movies Online', ['site' => $name])),
-            'description' => $category
-                ? ($category->description
-                    ? Str::limit(trim(preg_replace('/\s+/', ' ', $category->description)), 155)
-                    : __('Watch :name movies online on :site. Browse the newest, top rated and most viewed :name titles.', ['name' => $category->name, 'site' => $name]))
-                : __('Watch movies online on :site. Browse the newest, top rated and most viewed movies by category.', ['site' => $name]),
+            'title' => $title,
+            'description' => $description,
             'canonical' => $urlIn(app()->getLocale()),
-            'alternates' => $q === '' ? $this->alternates($urlIn) : [],
-            'robots' => $q !== '' ? 'noindex, follow' : 'index, follow',
+            'alternates' => $indexable ? $this->alternates($urlIn) : [],
+            'robots' => $indexable ? 'index, follow' : 'noindex, follow',
             'type' => 'website',
         ];
 
@@ -92,7 +153,7 @@ class MovieController extends Controller
             ])->all(),
         ];
 
-        if (! $category && $q === '' && $page === 1) {
+        if (! $category && ! $tagSlugs && $q === '' && $page === 1) {
             $seo['jsonld_site'] = [
                 '@context' => 'https://schema.org',
                 '@type' => 'WebSite',
@@ -107,7 +168,33 @@ class MovieController extends Controller
             ];
         }
 
-        return view('movies.index', compact('movies', 'categories', 'category', 'q', 'sort', 'dir', 'defaultDir', 'heading', 'seo', 'sections'));
+        // Links for chips and tabs: the same filters with one thing changed, in their canonical URL form.
+        $state = ['category' => $category, 'tags' => $tagSlugs, 'q' => $q, 'sort' => $sort, 'dir' => $dir];
+        $filterUrl = function (array $change = []) use ($state): string {
+            $s = array_replace($state, $change);
+
+            return $this->listUrl($s['category'], $s['tags'], [
+                'q' => $s['q'] ?: null,
+                'sort' => $s['sort'] === 'created' ? null : $s['sort'],
+                'dir' => $s['dir'] === Movie::SORTS[$s['sort']][1] ? null : $s['dir'],
+            ]);
+        };
+
+        // Header search stays inside the current category/tags and keeps the sort (GET forms drop the action's
+        // query string, so extra filters go in hidden fields).
+        [$searchAction, $searchHidden] = $this->listTarget($category, $tagSlugs);
+        $searchHidden += array_filter(['sort' => $sort === 'created' ? null : $sort, 'dir' => $dir === $defaultDir ? null : $dir]);
+        $searchIn = $category?->name ?? ($tagSlugs ? '#'.$activeTags->pluck('name')->join(' + #') : null);
+        $searchForm = [
+            'action' => $searchAction,
+            'hidden' => $searchHidden,
+            'placeholder' => $searchIn ? __('Search in :name', ['name' => $searchIn]) : __('Search movies'),
+        ];
+
+        return view('movies.index', compact(
+            'movies', 'categories', 'category', 'q', 'sort', 'dir', 'defaultDir', 'heading', 'seo', 'sections',
+            'activeTags', 'tagSlugs', 'tagChips', 'filterUrl', 'searchForm',
+        ));
     }
 
     /** @return array<string, array{title: string, url: string, movies: Collection, ranked: bool}> */
@@ -155,7 +242,7 @@ class MovieController extends Controller
             $server = 1;
         }
 
-        $movie->load('categories');
+        $movie->load('categories', 'tags');
         $related = $this->related($movie);
         $myScore = $ratings->scoreFor($movie, $request->cookie(self::VOTER_COOKIE));
         $url = lroute('movies.show', $movie);

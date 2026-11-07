@@ -80,6 +80,14 @@
             </ul>
         @endif
 
+        @if ($movie->tags->isNotEmpty())
+            <ul class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="{{ __('Tags') }}">
+                @foreach ($movie->tags as $t)
+                    <li><a href="{{ lroute('movies.tag', $t) }}" class="inline-block py-1 text-neutral-400 hover:text-white">#{{ $t->name }}</a></li>
+                @endforeach
+            </ul>
+        @endif
+
         <form method="post" action="{{ lroute('movies.rate', $movie) }}" class="mt-5 border-y border-ink-800 py-3">
             @csrf
             <p class="text-sm text-neutral-400">{{ $myScore ? __('Your rating') : __('Rate this movie') }}</p>

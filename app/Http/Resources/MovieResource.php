@@ -30,6 +30,9 @@ class MovieResource extends JsonResource
             'duration_minutes' => $this->duration_minutes,
             'categories' => $this->whenLoaded('categories', fn () => $this->categories
                 ->map(fn ($c) => ['name' => $c->name, 'slug' => $c->slug])->values()),
+            /** Tags (`/tag/{slug}` pages). */
+            'tags' => $this->whenLoaded('tags', fn () => $this->tags
+                ->map(fn ($t) => ['name' => $t->name, 'slug' => $t->slug])->values()),
             /** Website page views, one per visitor session (API reads do not count). */
             'views' => $this->views,
             /** Average visitor rating 1-5 (two decimals); `0` when unrated. */

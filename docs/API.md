@@ -9,7 +9,7 @@ guide.
 
 - Send `Accept: application/json` on every request, so errors come back as JSON instead of redirects.
 - Write endpoints need `Authorization: Bearer <token>` from `POST /login`. Only admin users can log in.
-- Movies and categories are addressed by **slug** (`/movies/night-train`, `/categories/sci-fi`).
+- Movies, categories and tags are addressed by **slug** (`/movies/night-train`, `/categories/sci-fi`, `/tags/korea`).
 - Times are ISO 8601 UTC.
 
 ## Authentication
@@ -72,6 +72,7 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
   "release_year": 2025,
   "duration_minutes": 111,
   "categories": [{ "name": "Sci-Fi", "slug": "sci-fi" }],
+  "tags": [{ "name": "Korea", "slug": "korea" }, { "name": "Zombie", "slug": "zombie" }],
   "views": 0,
   "rating_avg": 0,
   "rating_count": 0,
@@ -96,7 +97,8 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 | Query | Default | Notes |
 | --- | --- | --- |
 | `q` | | search in title and synopsis, max 100 chars |
-| `category` | | category slug. Combine freely with `q`, `sort` and `dir`. |
+| `category` | | category slug. Combine freely with `q`, `tags`, `sort` and `dir`. |
+| `tags` | | tag slugs, comma separated, max 5: `tags=korea,zombie`. A movie must have **all** of them. |
 | `sort` | `created` | `created` (newest by publish time), `trending` (most views in the last 7 days), `rating` (highest), `views` (most viewed all time), `duration` (longest) |
 | `dir` | per sort (`desc`) | `desc` or `asc` to reverse, e.g. `sort=duration&dir=asc` = shortest first. Movies with no value (e.g. no duration) are always listed last. |
 | `status` | `published` | admin token only: `published`, `scheduled`, `draft` or `all`. Without an admin token anything but `published` returns `403`. |
@@ -105,6 +107,7 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 
 ```sh
 curl 'https://moviemov.id/api/movies?category=sci-fi&sort=rating&per_page=10' -H 'Accept: application/json'
+curl 'https://moviemov.id/api/movies?tags=korea,zombie&sort=views' -H 'Accept: application/json'
 ```
 
 Response: `{ "data": [Movie, ...], "links": {...}, "meta": { "current_page", "last_page", "per_page", "total", ... } }`.
@@ -126,6 +129,7 @@ Fields:
 | `thumbnail_url` | no | `http`/`https` image URL. Ignored when a `thumbnail` file is uploaded in the same request. |
 | `thumbnail` | no | image file (multipart only): jpg, jpeg, png, webp; max 2 MB. 16:9 recommended (e.g. 1280x720). |
 | `categories` | no | list of names, max 10, each max 100 chars. JSON array, or comma-separated string in multipart (`Action, Drama`). Names are matched by slug (`sci fi` = `Sci-Fi`); unknown names create a new category. |
+| `tags` | no | free keywords (actor, country, mood ...), max 20, each max 50 chars. JSON array, or comma-separated string in multipart (`Korea, Tom Hanks`). Matched by slug (`tom hanks` = `Tom Hanks`); unknown names create a new tag. Each tag gets a page at `/tag/{slug}`. |
 | `slug` | no | `a-z0-9-_`, unique. Generated from the title (`night-train`, then `night-train-2`, ...). |
 | `synopsis` | no | max 10000 chars. The first ~155 chars become the page's meta description. |
 | `release_year` | no | 1870-2100 |
@@ -144,6 +148,7 @@ curl -X POST https://moviemov.id/api/movies \
     "embed_url": "<iframe src=\"https://vidara.to/e/8SdwOuKAAk92t\" width=\"640\" height=\"360\" frameborder=\"0\" allowfullscreen></iframe>",
     "thumbnail_url": "https://example.com/night-train.jpg",
     "categories": ["Drama", "Thriller"],
+    "tags": ["Korea", "Zombie"],
     "synopsis": "A long ride through the night.",
     "release_year": 2024,
     "duration_minutes": 104
@@ -158,6 +163,7 @@ curl -X POST https://moviemov.id/api/movies \
   -F title='Night Train' \
   --form-string embed_url='<iframe src="https://vidara.to/e/8SdwOuKAAk92t" width="640" height="360" frameborder="0" allowfullscreen></iframe>' \
   -F categories='Drama, Thriller' \
+  -F tags='Korea, Zombie' \
   -F thumbnail=@night-train.jpg
 ```
 
@@ -184,7 +190,7 @@ curl 'https://moviemov.id/api/movies?status=scheduled' -H "Authorization: Bearer
 
 Same fields as create, all optional. Only the fields you send change.
 
-- `categories`: when sent, replaces the whole list (`[]` removes all). When omitted, categories stay.
+- `categories` / `tags`: when sent, replaces the whole list (`[]` removes all). When omitted, they stay.
 - `thumbnail_url: null` or `remove_thumbnail: true` removes the thumbnail.
 - Changing `slug` changes the page URL.
 
@@ -251,6 +257,47 @@ Change `name`, `slug` and/or `description`. Changing `slug` changes the category
 ### `DELETE /categories/{slug}` (token)
 
 `204 No Content`. The category is removed from its movies; the movies themselves are kept.
+
+## Tags
+
+Free keywords on movies (actor, country, mood ...). Usually you never call these endpoints: posting a movie with
+`"tags": ["Korea"]` creates the tag. Each tag has a page at `/tag/{slug}` (and `/en/tag/{slug}`), listed in the
+sitemap once it has a published movie.
+
+### Tag object
+
+```json
+{
+  "id": 3,
+  "name": "Korea",
+  "slug": "korea",
+  "movies_count": 12,
+  "url": "https://moviemov.id/tag/korea"
+}
+```
+
+`movies_count` counts published movies only.
+
+### `GET /tags` (public)
+
+Tags with at least one published movie, most used first: `{ "data": [Tag, ...] }`. With an admin token, `?all=1`
+also lists unused tags.
+
+### `GET /tags/{slug}` (public)
+
+`{ "data": Tag }`, or `404`.
+
+### `POST /tags` (token)
+
+`name` (required, max 50) and optional `slug` (generated from the name). `201 Created`; a duplicate slug returns `422`.
+
+### `PUT|PATCH /tags/{slug}` (token)
+
+Rename it or change its `slug` (this changes the tag page URL).
+
+### `DELETE /tags/{slug}` (token)
+
+`204 No Content`. The tag is removed from its movies; the movies themselves are kept.
 
 ## Broken video reports (token)
 

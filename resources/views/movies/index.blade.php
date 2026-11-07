@@ -4,11 +4,13 @@
     @php
         $sortLabels = App\Http\Controllers\MovieController::SORT_LABELS;
         $sorts = App\Models\Movie::SORTS;
-        $listUrl = fn (array $params) => ($category ? lroute('movies.category', $category) : lroute('movies.index'))
-            .(($qs = http_build_query(array_filter($params))) ? '?'.$qs : '');
-        // Switching category keeps the current search and sort.
-        $keep = array_filter(['q' => $q, 'sort' => $sort === 'created' ? null : $sort, 'dir' => $dir === $defaultDir ? null : $dir]);
-        $chipUrl = fn ($c) => ($c ? lroute('movies.category', $c) : lroute('movies.index')).($keep ? '?'.http_build_query($keep) : '');
+        // $filterUrl(change): the current filters (category, tags, search, sort) with one thing changed.
+        // Links that carry a filter or sort in the query string are nofollow; plain category/tag pages stay crawlable.
+        $nofollow = fn (string $url) => str_contains($url, '?');
+        $chip = 'shrink-0 rounded-full border px-3.5 py-2 text-sm';
+        $chipOn = 'border-white bg-white text-ink-950';
+        $chipOff = 'border-ink-700 text-neutral-300 hover:border-neutral-500';
+        $canAddTag = count($tagSlugs) < App\Models\Tag::MAX_FILTER;
     @endphp
 
     @if ($sections)
@@ -23,12 +25,35 @@
 
     @if ($categories->isNotEmpty())
         <nav aria-label="{{ __('Categories') }}" class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
-            <a href="{{ $chipUrl(null) }}" @if ($keep) rel="nofollow" @endif @if (! $category) aria-current="true" @endif
-               @class(['shrink-0 rounded-full border px-3.5 py-2 text-sm', 'border-white bg-white text-ink-950' => ! $category, 'border-ink-700 text-neutral-300 hover:border-neutral-500' => $category])>{{ __('All') }}</a>
+            @php $url = $filterUrl(['category' => null]); @endphp
+            <a href="{{ $url }}" @if ($nofollow($url)) rel="nofollow" @endif @if (! $category) aria-current="true" @endif
+               @class([$chip, $chipOn => ! $category, $chipOff => $category])>{{ __('All') }}</a>
             @foreach ($categories->sortByDesc(fn ($c) => $category?->is($c)) as $c)
-                <a href="{{ $chipUrl($c) }}" @if ($keep) rel="nofollow" @endif @if ($category?->is($c)) aria-current="true" @endif
-                   @class(['shrink-0 rounded-full border px-3.5 py-2 text-sm', 'border-white bg-white text-ink-950' => $category?->is($c), 'border-ink-700 text-neutral-300 hover:border-neutral-500' => ! $category?->is($c)])>{{ $c->name }}</a>
+                @php $url = $filterUrl(['category' => $c]); @endphp
+                <a href="{{ $url }}" @if ($nofollow($url)) rel="nofollow" @endif @if ($category?->is($c)) aria-current="true" @endif
+                   @class([$chip, $chipOn => $category?->is($c), $chipOff => ! $category?->is($c)])>{{ $c->name }}</a>
             @endforeach
+        </nav>
+    @endif
+
+    {{-- Tags: active ones first (tap to remove), then popular ones (tap to add). Several tags = movies with all of them. --}}
+    @if ($tagChips->isNotEmpty())
+        <nav aria-label="{{ __('Tags') }}" class="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
+            @foreach ($tagChips as $t)
+                @php
+                    $on = in_array($t->slug, $tagSlugs, true);
+                    $url = $filterUrl(['tags' => $on ? array_values(array_diff($tagSlugs, [$t->slug])) : [...$tagSlugs, $t->slug]]);
+                @endphp
+                @if ($on || $canAddTag)
+                    <a href="{{ $url }}" @if ($nofollow($url)) rel="nofollow" @endif
+                       @if ($on) aria-current="true" aria-label="{{ __('Remove tag :name', ['name' => $t->name]) }}" @endif
+                       @class([$chip, 'inline-flex items-center gap-1.5', $chipOn => $on, $chipOff => ! $on])>#{{ $t->name }}@if ($on)<span aria-hidden="true" class="text-base leading-none">&times;</span>@endif</a>
+                @endif
+            @endforeach
+            @if (count($tagSlugs) > 1)
+                @php $url = $filterUrl(['tags' => []]); @endphp
+                <a href="{{ $url }}" @if ($nofollow($url)) rel="nofollow" @endif class="shrink-0 px-2 py-2 text-sm text-neutral-400 underline-offset-4 hover:text-white hover:underline">{{ __('Clear tags') }}</a>
+            @endif
         </nav>
     @endif
 
@@ -47,7 +72,7 @@
                 $active = $sort === $key;
                 $keyDefault = $sorts[$key][1];
                 $nextDir = $active ? ($dir === 'desc' ? 'asc' : 'desc') : $keyDefault;
-                $tabUrl = $listUrl(['q' => $q, 'sort' => $key === 'created' ? null : $key, 'dir' => $nextDir === $keyDefault ? null : $nextDir]);
+                $tabUrl = $filterUrl(['sort' => $key, 'dir' => $nextDir]);
             @endphp
             <a href="{{ $tabUrl }}" rel="nofollow"
                @if ($active) aria-current="true" title="{{ $dir === 'desc' ? __('High to low, tap to reverse') : __('Low to high, tap to reverse') }}" @endif
@@ -65,7 +90,9 @@
         <div class="py-16 text-center text-neutral-500">
             <p>{{ __('No movies found.') }}</p>
             @if ($category && $q !== '')
-                <a href="{{ $chipUrl(null) }}" rel="nofollow" class="mt-3 inline-flex h-11 items-center rounded-lg border border-ink-700 px-4 text-sm text-neutral-200 hover:border-neutral-500">{{ __('Search “:q” in all categories', ['q' => $q]) }}</a>
+                <a href="{{ $filterUrl(['category' => null]) }}" rel="nofollow" class="mt-3 inline-flex h-11 items-center rounded-lg border border-ink-700 px-4 text-sm text-neutral-200 hover:border-neutral-500">{{ __('Search “:q” in all categories', ['q' => $q]) }}</a>
+            @elseif ($tagSlugs)
+                <a href="{{ $filterUrl(['tags' => []]) }}" rel="nofollow" class="mt-3 inline-flex h-11 items-center rounded-lg border border-ink-700 px-4 text-sm text-neutral-200 hover:border-neutral-500">{{ __('Clear tags') }}</a>
             @endif
         </div>
     @else

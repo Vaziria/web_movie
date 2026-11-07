@@ -25,13 +25,17 @@
             <option value="draft" @selected($status === 'draft')>Drafts ({{ $statusCounts['draft'] }})</option>
         </select>
         <button class="h-10 rounded-lg border border-ink-700 px-4 text-sm hover:border-neutral-500">Filter</button>
-        @if ($q !== '' || $category !== '' || $status !== '')
+        @if ($tag)
+            <input type="hidden" name="tag" value="{{ $tag->slug }}">
+            <a href="{{ route('admin.movies.index', array_filter(['q' => $q, 'category' => $category, 'status' => $status])) }}" class="inline-flex h-10 items-center gap-1 rounded-full border border-white bg-white px-3 text-sm text-ink-950" title="Remove tag filter">#{{ $tag->name }} &times;</a>
+        @endif
+        @if ($q !== '' || $category !== '' || $status !== '' || $tag)
             <a href="{{ route('admin.movies.index') }}" class="inline-flex h-10 items-center px-2 text-sm text-neutral-400 hover:text-white">Clear</a>
         @endif
     </form>
 
     @if ($movies->isEmpty())
-        @if ($q !== '' || $category !== '' || $status !== '')
+        @if ($q !== '' || $category !== '' || $status !== '' || $tag)
             <p class="py-12 text-center text-neutral-500">No movies match this filter. <a href="{{ route('admin.movies.index') }}" class="text-accent">Show all</a>.</p>
         @else
             <p class="py-12 text-center text-neutral-500">No movies yet. <a href="{{ route('admin.movies.create') }}" class="text-accent">Add the first one</a>.</p>
@@ -58,6 +62,7 @@
                         @endif
                         <p class="line-clamp-1 text-xs text-neutral-500">
                             {{ $movie->categories->pluck('name')->join(', ') ?: 'No category' }}
+                            @if ($movie->tags->isNotEmpty()) · {{ $movie->tags->map(fn ($t) => '#'.$t->name)->join(' ') }} @endif
                             · ★ {{ number_format($movie->rating_avg, 1) }} ({{ $movie->rating_count }})
                             · {{ number_format($movie->views) }} views
                             · {{ $movie->created_at?->format('Y-m-d') }}
