@@ -14,4 +14,17 @@ return [
     'embed_rewrites' => [
         '~^https://(www\.)?vidara\.to/v/([A-Za-z0-9]+)/?(\?.*)?$~' => 'https://vidara.to/e/$2',
     ],
+
+    /*
+     | Time zone for the admin panel's publish/schedule times (form input and display), and for API
+     | `published_at` values sent without an offset. Stored in UTC.
+     */
+    'admin_timezone' => env('ADMIN_TIMEZONE', 'Asia/Jakarta'),
+    'admin_timezone_label' => env('ADMIN_TIMEZONE_LABEL', 'WIB'),
+
+    /* "Trending" = most views in the last N days (including today). */
+    'trending_days' => 7,
+
+    /* Daily view rows older than this are pruned now and then. */
+    'view_days_keep' => 90,
 ];

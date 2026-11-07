@@ -18,14 +18,20 @@
             @endforeach
             <option value="none" @selected($category === 'none')>No category</option>
         </select>
+        <select name="status" aria-label="Status" class="h-10 min-w-0 flex-1 basis-36 rounded-lg border border-ink-700 bg-ink-900 px-2 text-sm text-neutral-200 sm:flex-none">
+            <option value="">All statuses</option>
+            <option value="published" @selected($status === 'published')>Published</option>
+            <option value="scheduled" @selected($status === 'scheduled')>Scheduled ({{ $statusCounts['scheduled'] }})</option>
+            <option value="draft" @selected($status === 'draft')>Drafts ({{ $statusCounts['draft'] }})</option>
+        </select>
         <button class="h-10 rounded-lg border border-ink-700 px-4 text-sm hover:border-neutral-500">Filter</button>
-        @if ($q !== '' || $category !== '')
+        @if ($q !== '' || $category !== '' || $status !== '')
             <a href="{{ route('admin.movies.index') }}" class="inline-flex h-10 items-center px-2 text-sm text-neutral-400 hover:text-white">Clear</a>
         @endif
     </form>
 
     @if ($movies->isEmpty())
-        @if ($q !== '' || $category !== '')
+        @if ($q !== '' || $category !== '' || $status !== '')
             <p class="py-12 text-center text-neutral-500">No movies match this filter. <a href="{{ route('admin.movies.index') }}" class="text-accent">Show all</a>.</p>
         @else
             <p class="py-12 text-center text-neutral-500">No movies yet. <a href="{{ route('admin.movies.create') }}" class="text-accent">Add the first one</a>.</p>
@@ -41,6 +47,12 @@
                     </a>
                     <div class="min-w-0 flex-1">
                         <a href="{{ route('admin.movies.edit', $movie) }}" class="line-clamp-1 font-medium text-white hover:underline">{{ $movie->title }}</a>
+                        @php $st = $movie->status(); @endphp
+                        @if ($st !== 'published')
+                            <p @class(['text-xs font-medium', 'text-neutral-300' => $st === 'draft', 'text-amber-300' => $st === 'scheduled'])>
+                                {{ $st === 'draft' ? '● Draft' : '◷ Scheduled · '.$movie->publishedAtLabel() }}
+                            </p>
+                        @endif
                         @if ($movie->open_reports_count > 0)
                             <a href="{{ route('admin.reports.index') }}" class="text-xs font-medium text-red-400 hover:underline">⚠ {{ $movie->open_reports_count }} broken-video {{ \Illuminate\Support\Str::plural('report', $movie->open_reports_count) }}</a>
                         @endif
@@ -51,7 +63,7 @@
                             · {{ $movie->created_at?->format('Y-m-d') }}
                         </p>
                     </div>
-                    <a href="{{ route('movies.show', $movie) }}" target="_blank" rel="noopener" class="hidden shrink-0 text-xs text-neutral-400 hover:text-white sm:inline">View</a>
+                    <a href="{{ route('movies.show', $movie) }}" target="_blank" rel="noopener" class="hidden shrink-0 text-xs text-neutral-400 hover:text-white sm:inline">{{ $movie->isPublished() ? 'View' : 'Preview' }}</a>
                 </li>
             @endforeach
         </ul>

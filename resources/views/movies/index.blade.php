@@ -11,7 +11,12 @@
         $chipUrl = fn ($c) => ($c ? lroute('movies.category', $c) : lroute('movies.index')).($keep ? '?'.http_build_query($keep) : '');
     @endphp
 
-    <h1 class="mb-4 text-xl font-semibold text-white md:text-2xl">{{ $heading }}</h1>
+    @if ($sections)
+        {{-- Home with rows: a hidden page title, the rows, then "Latest movies" as a section. --}}
+        <h1 class="sr-only">{{ __('Watch movies online on :site', ['site' => config('app.name')]) }}</h1>
+    @else
+        <h1 class="mb-4 text-xl font-semibold text-white md:text-2xl">{{ $heading }}</h1>
+    @endif
     @if ($category?->description)
         <p class="-mt-2 mb-4 max-w-3xl text-sm leading-relaxed text-neutral-400">{{ $category->description }}</p>
     @endif
@@ -27,8 +32,16 @@
         </nav>
     @endif
 
+    @foreach ($sections as $key => $section)
+        @include('partials.movie-row', $section + ['key' => $key, 'first' => $loop->first])
+    @endforeach
+
+    @if ($sections)
+        <h2 class="mb-2 text-lg font-semibold text-white">{{ $heading }}</h2>
+    @endif
+
     {{-- Sort tabs scroll sideways on phones. Tapping the active tab flips the order (▼ high→low, ▲ low→high). --}}
-    <nav aria-label="{{ __('Sort') }}" class="-mx-4 mb-5 flex gap-5 overflow-x-auto border-b border-ink-800 px-4 text-sm [scrollbar-width:none] md:mx-0 md:px-0">
+    <nav aria-label="{{ __('Sort') }}" class="-mx-4 mb-5 flex gap-4 overflow-x-auto border-b border-ink-800 px-4 text-sm [scrollbar-width:none] md:mx-0 md:px-0">
         @foreach ($sortLabels as $key => $label)
             @php
                 $active = $sort === $key;
@@ -59,23 +72,7 @@
         <ul class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
             @foreach ($movies as $movie)
                 <li>
-                    <a href="{{ lroute('movies.show', $movie) }}" class="group block">
-                        <div class="aspect-video overflow-hidden rounded-lg bg-ink-800">
-                            @if ($src = $movie->thumbnailSrc())
-                                <img src="{{ $src }}" alt="{{ $movie->title }}" width="480" height="270"
-                                     loading="{{ $loop->index < 4 ? 'eager' : 'lazy' }}" decoding="async" referrerpolicy="no-referrer"
-                                     class="size-full object-cover transition-opacity group-hover:opacity-80">
-                            @else
-                                <div class="flex size-full items-center justify-center p-3 text-center text-xs text-neutral-500">{{ \Illuminate\Support\Str::limit($movie->title, 40) }}</div>
-                            @endif
-                        </div>
-                        <h2 class="mt-2 line-clamp-2 text-sm font-medium leading-snug text-neutral-100 group-hover:text-white">{{ $movie->title }}</h2>
-                        <p class="mt-0.5 text-xs text-neutral-500">
-                            @if ($movie->release_year){{ $movie->release_year }} · @endif
-                            @if ($d = $movie->durationLabel()){{ $d }} · @endif
-                            ★ {{ nf($movie->rating_avg, 1) }} · {{ trans_choice(':count view|:count views', $movie->views, ['count' => nf($movie->views)]) }}
-                        </p>
-                    </a>
+                    @include('partials.movie-card', ['movie' => $movie, 'tag' => $sections ? 'h3' : 'h2', 'eager' => ! $sections && $loop->index < 4])
                 </li>
             @endforeach
         </ul>

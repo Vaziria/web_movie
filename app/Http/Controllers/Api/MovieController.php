@@ -22,10 +22,16 @@ class MovieController extends Controller
             'category' => ['sometimes', 'nullable', 'string', 'max:120'],
             'dir' => ['sometimes', 'nullable', 'in:asc,desc'],
             'per_page' => ['sometimes', 'integer', 'between:1,100'],
+            'status' => ['sometimes', 'nullable', 'in:published,scheduled,draft,all'],
         ]);
+
+        // Drafts and scheduled movies are only listed for an admin token.
+        $status = $request->string('status')->toString() ?: 'published';
+        abort_if($status !== 'published' && ! $request->user('sanctum')?->is_admin, 403, 'Only admins can list drafts and scheduled movies.');
 
         $movies = Movie::query()
             ->with('categories')
+            ->status($status)
             ->browse($request->string('q')->toString(), $request->string('sort')->toString(), $request->string('category')->toString(), $request->string('dir')->toString() ?: null)
             ->paginate($request->integer('per_page', 24))
             ->withQueryString();
@@ -33,8 +39,10 @@ class MovieController extends Controller
         return MovieResource::collection($movies);
     }
 
-    public function show(Movie $movie): MovieResource
+    public function show(Request $request, Movie $movie): MovieResource
     {
+        abort_unless($movie->isPublished() || $request->user('sanctum')?->is_admin, 404);
+
         return new MovieResource($movie->load('categories'));
     }
 

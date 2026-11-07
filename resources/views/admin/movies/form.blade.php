@@ -5,6 +5,10 @@
     $input = 'w-full rounded-lg border border-ink-700 bg-ink-900 px-3 text-base text-white focus:border-accent focus:outline-none';
     $label = 'mb-1 block text-sm text-neutral-400';
     $remoteThumb = $movie->thumbnail_url && ! str_starts_with($movie->thumbnail_url, '/') ? $movie->thumbnail_url : '';
+    $tz = config('movies.admin_timezone');
+    $currentStatus = old('status', $editing ? $movie->status() : 'published');
+    $scheduleValue = old('published_at', $editing && $movie->status() === 'scheduled' ? $movie->published_at->copy()->timezone($tz)->format('Y-m-d\TH:i') : '');
+    $radio = 'flex min-h-11 cursor-pointer items-center gap-3 text-sm text-neutral-200';
 @endphp
 
 @section('title', $editing ? 'Edit '.$movie->title : 'New movie')
@@ -13,7 +17,7 @@
     <div class="mb-4 flex items-center justify-between gap-3">
         <h1 class="line-clamp-1 text-xl font-semibold text-white">{{ $editing ? 'Edit movie' : 'New movie' }}</h1>
         @if ($editing)
-            <a href="{{ route('movies.show', $movie) }}" target="_blank" rel="noopener" class="shrink-0 text-sm text-neutral-400 hover:text-white">View page ↗</a>
+            <a href="{{ route('movies.show', $movie) }}" target="_blank" rel="noopener" class="shrink-0 text-sm text-neutral-400 hover:text-white">{{ $movie->isPublished() ? 'View page' : 'Preview' }} ↗</a>
         @endif
     </div>
 
@@ -87,6 +91,33 @@
                 <input id="slug" name="slug" value="{{ old('slug', $movie->slug) }}" placeholder="auto from title" class="{{ $input }} h-11">
             </div>
         </div>
+
+        <fieldset class="rounded-lg border border-ink-800 p-4">
+            <legend class="px-1 text-sm text-neutral-400">Publish</legend>
+            <label class="{{ $radio }}">
+                <input type="radio" name="status" value="published" @checked($currentStatus === 'published') class="size-4 accent-accent">
+                @if ($editing && $movie->isPublished())
+                    <span>Published <span class="text-neutral-500">· since {{ $movie->publishedAtLabel() }}</span></span>
+                @else
+                    <span>Publish now</span>
+                @endif
+            </label>
+            <label class="{{ $radio }}">
+                <input type="radio" name="status" value="draft" @checked($currentStatus === 'draft') class="size-4 accent-accent">
+                <span>Draft <span class="text-neutral-500">· hidden from visitors, you can preview it</span></span>
+            </label>
+            <label class="{{ $radio }}">
+                <input type="radio" name="status" value="scheduled" @checked($currentStatus === 'scheduled') class="size-4 accent-accent">
+                <span>Schedule <span class="text-neutral-500">· goes live by itself at:</span></span>
+            </label>
+            <div class="pl-7">
+                <label for="published_at" class="sr-only">Publish at</label>
+                <input id="published_at" type="datetime-local" name="published_at" value="{{ $scheduleValue }}"
+                       class="{{ $input }} h-11 max-w-64 [color-scheme:dark]">
+                <p class="mt-1 text-xs text-neutral-500">{{ config('movies.admin_timezone_label') }} time ({{ $tz }}). Only used with "Schedule".</p>
+                @error('published_at')<p class="mt-1 text-sm text-red-400">{{ $message }}</p>@enderror
+            </div>
+        </fieldset>
 
         <div class="flex gap-3 pt-2">
             <button type="submit" class="h-11 rounded-lg bg-accent px-6 font-medium text-white hover:bg-accent-hover">{{ $editing ? 'Save' : 'Create' }}</button>

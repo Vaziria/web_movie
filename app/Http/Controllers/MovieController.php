@@ -19,7 +19,7 @@ class MovieController extends Controller
     public const VOTER_COOKIE = 'voter';
 
     /** Sort key => English label (translated in views with __()). */
-    public const SORT_LABELS = ['created' => 'Newest', 'rating' => 'Top rated', 'views' => 'Most viewed', 'duration' => 'Duration'];
+    public const SORT_LABELS = ['created' => 'Newest', 'trending' => 'Trending', 'rating' => 'Rating', 'views' => 'Most viewed', 'duration' => 'Duration'];
 
     public function index(Request $request): View
     {
@@ -40,16 +40,23 @@ class MovieController extends Controller
         $dir = in_array($request->query('dir'), ['asc', 'desc'], true) ? (string) $request->query('dir') : $defaultDir;
 
         $movies = Movie::query()
+            ->published()
             ->browse($q, $sort, $category?->slug, $dir)
             ->paginate(24)
             ->withQueryString();
 
-        $categories = Category::query()->whereHas('movies')->orderBy('name')->get(['id', 'name', 'slug']);
+        $categories = Category::query()->whereHas('movies', fn ($m) => $m->published())->orderBy('name')->get(['id', 'name', 'slug']);
+
+        // Home page only (no filter, default sort, page 1): "Trending this week" and "Top rated" rows above the grid.
+        $sections = [];
+        if (! $category && $q === '' && $sort === 'created' && $dir === $defaultDir && $page === 1) {
+            $sections = $this->homeSections();
+        }
 
         $name = config('app.name');
         $heading = $category
             ? __(':name movies', ['name' => $category->name])
-            : ($q !== '' ? __('Search: :q', ['q' => $q]) : __('Latest movies'));
+            : ($q !== '' ? __('Search: :q', ['q' => $q]) : ($sort === 'created' ? __('Latest movies') : __('All movies')));
 
         // Sort variants duplicate the main list, so they all point at it; search results are not indexed.
         $urlIn = function (string $locale) use ($category, $page) {
@@ -100,15 +107,44 @@ class MovieController extends Controller
             ];
         }
 
-        return view('movies.index', compact('movies', 'categories', 'category', 'q', 'sort', 'dir', 'defaultDir', 'heading', 'seo'));
+        return view('movies.index', compact('movies', 'categories', 'category', 'q', 'sort', 'dir', 'defaultDir', 'heading', 'seo', 'sections'));
+    }
+
+    /** @return array<string, array{title: string, url: string, movies: Collection, ranked: bool}> */
+    private function homeSections(): array
+    {
+        $trending = Movie::query()->published()->withWeekViews()
+            ->orderByDesc('week_views')->orderByDesc('views')->orderByDesc('id')
+            ->limit(10)->get()
+            ->filter(fn (Movie $m) => $m->week_views > 0)->values();
+
+        $topRated = Movie::query()->published()->where('rating_count', '>', 0)
+            ->orderByDesc('rating_avg')->orderByDesc('rating_count')->orderByDesc('id')
+            ->limit(10)->get();
+
+        $home = lroute('movies.index');
+
+        return array_filter([
+            'trending' => $trending->isEmpty() ? null : [
+                'title' => __('Trending this week'), 'url' => $home.'?sort=trending', 'movies' => $trending, 'ranked' => true,
+            ],
+            'rating' => $topRated->isEmpty() ? null : [
+                'title' => __('Top rated'), 'url' => $home.'?sort=rating', 'movies' => $topRated, 'ranked' => false,
+            ],
+        ]);
     }
 
     public function show(Request $request, Movie $movie, RatingService $ratings): View
     {
-        // Count one view per movie per session (shared by both languages).
+        // Drafts and scheduled movies: 404 for visitors, a noindex preview for a logged-in admin.
+        $preview = ! $movie->isPublished();
+        abort_if($preview && ! $request->user()?->is_admin, 404);
+
+        // Count one view per movie per session (shared by both languages). Previews are not counted.
         $key = 'viewed.'.$movie->id;
-        if (! $request->session()->has($key)) {
+        if (! $preview && ! $request->session()->has($key)) {
             DB::table('movies')->where('id', $movie->id)->increment('views');
+            $movie->recordDailyView();
             $movie->views++;
             $request->session()->put($key, true);
         }
@@ -132,7 +168,7 @@ class MovieController extends Controller
             'name' => $movie->title,
             'description' => $movie->summary(500),
             'thumbnailUrl' => $thumb,
-            'uploadDate' => $movie->created_at?->toIso8601String(),
+            'uploadDate' => ($movie->published_at ?? $movie->created_at)?->toIso8601String(),
             'embedUrl' => $movie->embed_url,
             'duration' => $duration,
             'inLanguage' => app()->getLocale(),
@@ -183,14 +219,14 @@ class MovieController extends Controller
             'description' => $movie->summary(),
             'canonical' => $url,
             'alternates' => $this->alternates(fn ($l) => lroute('movies.show', $movie, $l)),
-            'robots' => 'index, follow, max-image-preview:large',
+            'robots' => $preview ? 'noindex, nofollow' : 'index, follow, max-image-preview:large',
             'type' => 'video.movie',
             'image' => $thumb,
             'jsonld' => $schema,
             'jsonld_site' => $breadcrumbs,
         ];
 
-        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server'));
+        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server', 'preview'));
     }
 
     /** hreflang map: each locale's URL plus x-default (Indonesian). */
@@ -209,14 +245,14 @@ class MovieController extends Controller
     private function related(Movie $movie, int $limit = 8): Collection
     {
         $ids = $movie->categories->pluck('id');
-        $related = $ids->isEmpty() ? collect() : Movie::query()
+        $related = $ids->isEmpty() ? collect() : Movie::query()->published()
             ->whereKeyNot($movie->id)
             ->whereHas('categories', fn ($q) => $q->whereIn('categories.id', $ids))
             ->orderByDesc('rating_avg')->orderByDesc('views')->orderByDesc('id')
             ->limit($limit)->get();
 
         if ($related->count() < $limit) {
-            $related = $related->concat(Movie::query()
+            $related = $related->concat(Movie::query()->published()
                 ->whereKeyNot($movie->id)
                 ->whereNotIn('id', $related->pluck('id'))
                 ->latest('id')->limit($limit - $related->count())->get());
@@ -227,6 +263,8 @@ class MovieController extends Controller
 
     public function rate(Request $request, Movie $movie, RatingService $ratings): RedirectResponse
     {
+        abort_unless($movie->isPublished(), 404);
+
         $data = $request->validate([
             'score' => ['required', 'integer', 'between:'.Movie::MIN_SCORE.','.Movie::MAX_SCORE],
         ], [
@@ -248,6 +286,8 @@ class MovieController extends Controller
     /** Visitor reports a broken player. One open report per IP, movie and server per 24 hours. */
     public function report(Request $request, Movie $movie): RedirectResponse
     {
+        abort_unless($movie->isPublished(), 404);
+
         $data = $request->validate([
             'server' => ['required', 'integer', 'between:1,'.count($movie->players())],
             'reason' => ['sometimes', 'in:'.implode(',', PlayerReport::REASONS)],

@@ -16,8 +16,9 @@ class MovieWriter
     public function save(MovieRequest $request, ?Movie $movie = null, ?User $author = null): Movie
     {
         return DB::transaction(function () use ($request, $movie, $author) {
+            $data = $this->attributes($request, $movie);
             $movie ??= new Movie;
-            $movie->fill($this->attributes($request));
+            $movie->fill($data);
             if (! $movie->exists && $author) {
                 $movie->user()->associate($author);
             }
@@ -32,9 +33,10 @@ class MovieWriter
     }
 
     /** Validated movie columns, with an uploaded thumbnail file turned into its public path. */
-    private function attributes(MovieRequest $request): array
+    private function attributes(MovieRequest $request, ?Movie $movie): array
     {
-        $data = collect($request->validated())->except(['thumbnail', 'categories', 'remove_thumbnail'])->all();
+        $data = collect($request->validated())->except(['thumbnail', 'categories', 'remove_thumbnail', 'status', 'published_at'])->all();
+        $data += $this->publishing($request, $movie);
 
         if ($request->file('thumbnail') instanceof UploadedFile) {
             $data['thumbnail_url'] = $this->storeThumbnail($request->file('thumbnail'));
@@ -43,6 +45,24 @@ class MovieWriter
         }
 
         return $data;
+    }
+
+    /**
+     * published_at from `status` + `published_at`. status: draft = null, scheduled = the given (future) time,
+     * published = the given time, the current one if already live, or now. No status: a given published_at is used
+     * as is (null = draft); nothing given = unchanged (new movies default to "now").
+     */
+    private function publishing(MovieRequest $request, ?Movie $movie): array
+    {
+        $given = array_key_exists('published_at', $request->validated());
+        $at = $given ? Movie::parsePublishedAt($request->validated('published_at')) : null;
+
+        return match ($request->validated('status')) {
+            'draft' => ['published_at' => null],
+            'scheduled' => ['published_at' => $at],
+            'published' => ['published_at' => $at ?? ($movie?->isPublished() ? $movie->published_at : now())],
+            default => $given ? ['published_at' => $at] : [],
+        };
     }
 
     private function storeThumbnail(UploadedFile $file): string

@@ -70,6 +70,8 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
   "views": 0,
   "rating_avg": 0,
   "rating_count": 0,
+  "status": "published",
+  "published_at": "2026-11-07T07:47:08+00:00",
   "url": "https://moviemov.id/movies/starfall-protocol",
   "created_at": "2026-11-07T07:47:08+00:00",
   "updated_at": "2026-11-07T07:47:08+00:00"
@@ -80,6 +82,9 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 - `rating_avg`: average of visitor ratings, 1-5, two decimals. `0` when unrated.
 - `backup_embed_urls`: extra players shown as Server 2, 3, ... (Server 1 is `embed_url`). `[]` when none.
 - `url`: the Indonesian page. The English page is the same path under `/en` (e.g. `/en/movies/<slug>`).
+- `status`: `published` (live), `scheduled` (goes live by itself at `published_at`) or `draft` (`published_at` is
+  `null`). Only published movies appear on the site, in the sitemap and in public API results.
+- `views_week`: only with `sort=trending`: views in the last 7 days.
 
 ### `GET /movies` (public)
 
@@ -87,8 +92,9 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 | --- | --- | --- |
 | `q` | | search in title and synopsis, max 100 chars |
 | `category` | | category slug. Combine freely with `q`, `sort` and `dir`. |
-| `sort` | `created` | `created` (newest), `rating` (highest), `views` (most viewed), `duration` (longest) |
+| `sort` | `created` | `created` (newest by publish time), `trending` (most views in the last 7 days), `rating` (highest), `views` (most viewed all time), `duration` (longest) |
 | `dir` | per sort (`desc`) | `desc` or `asc` to reverse, e.g. `sort=duration&dir=asc` = shortest first. Movies with no value (e.g. no duration) are always listed last. |
+| `status` | `published` | admin token only: `published`, `scheduled`, `draft` or `all`. Without an admin token anything but `published` returns `403`. |
 | `per_page` | `24` | 1-100 |
 | `page` | `1` | |
 
@@ -101,7 +107,7 @@ An unknown `sort` or `dir` value returns `422`.
 
 ### `GET /movies/{slug}` (public)
 
-Returns `{ "data": Movie }`, or `404`.
+Returns `{ "data": Movie }`, or `404`. Drafts and scheduled movies are `404` unless you send an admin token.
 
 ### `POST /movies` (token)
 
@@ -119,6 +125,8 @@ Fields:
 | `synopsis` | no | max 10000 chars. The first ~155 chars become the page's meta description. |
 | `release_year` | no | 1870-2100 |
 | `duration_minutes` | no | 1-1440 (minutes). Shown as `1j 45m` / `1h 45m` on cards and used by `sort=duration`. |
+| `status` | no | `published` (default for new movies), `draft` or `scheduled`. On update, leaving it out keeps the current status. `published` on a movie that is already live keeps its original date. |
+| `published_at` | for `scheduled` | date-time. Must be in the future for `scheduled` and not in the future for `published`. Without an offset it is read as **WIB** (`Asia/Jakarta`): `2026-11-08 20:00` = 13:00 UTC. With an offset (`2026-11-08T20:00:00+07:00`, `...Z`) it is used as given. Returned in UTC. Sending `published_at: null` without `status` makes the movie a draft. |
 
 JSON:
 
@@ -151,6 +159,21 @@ curl -X POST https://moviemov.id/api/movies \
 With curl, use `--form-string` for `embed_url`: a `-F` value that starts with `<` is read as a file name.
 
 Response: `201 Created` with `{ "data": Movie }`.
+
+### Drafts and scheduled posts
+
+```sh
+# Save as a draft (hidden until you publish it)
+curl -X POST https://moviemov.id/api/movies -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' -d '{"title":"Night Train","embed_url":"https://vidara.to/e/XXXX","status":"draft"}'
+
+# Publish it tomorrow at 20:00 WIB (goes live by itself, no cron needed)
+curl -X PATCH https://moviemov.id/api/movies/night-train -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' -d '{"status":"scheduled","published_at":"2026-11-09 20:00"}'
+
+# List your drafts / scheduled posts
+curl 'https://moviemov.id/api/movies?status=scheduled' -H "Authorization: Bearer $TOKEN" -H 'Accept: application/json'
+```
 
 ### `PUT|PATCH /movies/{slug}` (token)
 

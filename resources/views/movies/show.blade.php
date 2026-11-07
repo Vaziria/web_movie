@@ -3,6 +3,13 @@
 @php $max = \App\Models\Movie::MAX_SCORE; @endphp
 
 @section('content')
+    @if ($preview)
+        <p role="status" class="-mt-1 mb-4 rounded-lg border border-amber-800 bg-amber-950 px-3 py-2 text-sm text-amber-200">
+            Admin preview: this movie is a <strong>{{ $movie->status() }}</strong>@if ($movie->published_at) (goes live {{ $movie->publishedAtLabel() }})@endif.
+            Visitors get a 404 until it is published.
+            <a href="{{ route('admin.movies.edit', $movie) }}" class="underline">Edit</a>
+        </p>
+    @endif
     <article>
         {{-- External player. Sandbox (blocks pop-up ads) is opt-in via EMBED_SANDBOX: many hosts refuse to play when sandboxed. --}}
         <div class="-mx-4 -mt-4 aspect-video bg-black md:mx-0 md:mt-0 md:overflow-hidden md:rounded-lg">
@@ -99,20 +106,7 @@
             <h2 id="related-heading" class="mb-4 text-lg font-semibold text-white">{{ __('More like this') }}</h2>
             <ul class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
                 @foreach ($related as $r)
-                    <li>
-                        <a href="{{ lroute('movies.show', $r) }}" class="group block">
-                            <div class="aspect-video overflow-hidden rounded-lg bg-ink-800">
-                                @if ($src = $r->thumbnailSrc())
-                                    <img src="{{ $src }}" alt="{{ $r->title }}" width="480" height="270" loading="lazy" decoding="async" referrerpolicy="no-referrer"
-                                         class="size-full object-cover transition-opacity group-hover:opacity-80">
-                                @else
-                                    <div class="flex size-full items-center justify-center p-3 text-center text-xs text-neutral-500">{{ \Illuminate\Support\Str::limit($r->title, 40) }}</div>
-                                @endif
-                            </div>
-                            <h3 class="mt-2 line-clamp-2 text-sm font-medium leading-snug text-neutral-100 group-hover:text-white">{{ $r->title }}</h3>
-                            <p class="mt-0.5 text-xs text-neutral-500">@if ($r->release_year){{ $r->release_year }} · @endif @if ($d = $r->durationLabel()){{ $d }} · @endif★ {{ nf($r->rating_avg, 1) }}</p>
-                        </a>
-                    </li>
+                    <li>@include('partials.movie-card', ['movie' => $r, 'tag' => 'h3', 'meta' => 'short'])</li>
                 @endforeach
             </ul>
         </section>

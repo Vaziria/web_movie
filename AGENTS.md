@@ -43,6 +43,15 @@ Update it whenever the owner makes a decision.
   (no JS). Visitors report a broken player ("Video tidak bisa diputar?"): `player_reports`, one per IP hash, movie
   and server per day; admins see them at `/admin/reports` (nav badge) and `GET /api/reports`.
 - Duration: `duration_minutes`, shown as `1j 45m` / `1h 45m` on cards (`Movie::durationLabel()`).
+- Publishing: `movies.published_at` (NULL = draft, future = scheduled, past = published). Every public query must
+  use `Movie::published()` (lists, related, chips, sitemap, category counts, API without admin token). Drafts and
+  scheduled movies 404 for visitors; a logged-in admin gets a noindex preview. No cron: visibility is computed at
+  query time. Admin/API times without an offset are WIB (`config('movies.admin_timezone')`); stored UTC.
+  "Newest" (`sort=created`) orders by `published_at`.
+- Trending: `movie_view_days` (movie_id, day, views), upserted with each counted page view; `sort=trending` =
+  views in the last `config('movies.trending_days')` (7) days. Old rows are pruned now and then (90 days).
+- Home page (no filter, default sort, page 1): rows "Trending minggu ini" and "Rating tertinggi" above the grid
+  (`partials.movie-row`); all cards use `partials.movie-card`.
 - Admin panel `/admin` (session login, `admin` middleware, throttle 5/min, noindex): movies (search + category
   filter incl. "No category"), categories, reports.
 - SEO: per-page title/description, canonical (sorted variants canonicalise to the plain list; `?q=` pages are
@@ -93,6 +102,9 @@ Record each decision as `- YYYY-MM-DD: <decision> (<why>)`.
 - 2026-11-07: Sort by duration; every sort can be reversed with `dir`. Indonesian "Most viewed" tab is "Populer"
   so all four tabs fit on a phone.
 - 2026-11-07: Category filter combines with search and sort; admin movie list filters by category.
+- 2026-11-07: Drafts + scheduled posts (owner picked them). Schedule times are WIB.
+- 2026-11-07: Trending (7-day views) as a sort and a home row, plus a "Top rated" home row (owner picked them).
+  The Indonesian/English rating tab is labelled just "Rating" so five tabs fit on a phone.
 - 2026-11-07: Schema changes on production go in new migrations only (production already has data/tables).
 - 2026-11-07: Deploy policy: normally only the owner deploys (`deploy.cmd`; see `docs/DEPLOY.md`). Temporary
   exception from the owner: the agent may deploy on 2026-11-07 and 2026-11-08 through the Hostinger MCP
@@ -113,7 +125,7 @@ Docs for humans: `docs/API.md`, `docs/ADMIN.md`. Keep them in sync when the API 
   (`deploy/build-release.sh`), uploading it plus a randomly named copy of `deploy/deploy-runner.php` into
   `public_html/public/` with the Hostinger file-upload API, and requesting the runner once over HTTPS. It extracts,
   migrates, caches and deletes itself. PHP CLI on the server (for reference): `/opt/alt/php84/usr/bin/php`.
-- First deploy done 2026-11-07 (commit f8dd80c); latest ef1ac13. Production admin credentials are in the gitignored
+- First deploy done 2026-11-07 (commit f8dd80c). Production admin credentials are in the gitignored
   `storage/app/private/production-admin.txt` on the owner's PC.
 - Never overwrite `public_html/.env` or `public_html/public/uploads/` on redeploy.
 

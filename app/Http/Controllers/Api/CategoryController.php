@@ -13,7 +13,7 @@ class CategoryController extends Controller
 {
     public function index(): JsonResponse
     {
-        $categories = Category::query()->withCount('movies')->orderBy('name')->get()
+        $categories = Category::query()->withCount(self::publishedCount())->orderBy('name')->get()
             ->map(fn (Category $c) => $this->present($c));
 
         return response()->json(['data' => $categories]);
@@ -21,21 +21,21 @@ class CategoryController extends Controller
 
     public function show(Category $category): JsonResponse
     {
-        return response()->json(['data' => $this->present($category->loadCount('movies'))]);
+        return response()->json(['data' => $this->present($category->loadCount(self::publishedCount()))]);
     }
 
     public function store(CategoryRequest $request): JsonResponse
     {
         $category = Category::create($request->validated());
 
-        return response()->json(['data' => $this->present($category->loadCount('movies'))], 201);
+        return response()->json(['data' => $this->present($category->loadCount(self::publishedCount()))], 201);
     }
 
     public function update(CategoryRequest $request, Category $category): JsonResponse
     {
         $category->update($request->validated());
 
-        return response()->json(['data' => $this->present($category->loadCount('movies'))]);
+        return response()->json(['data' => $this->present($category->loadCount(self::publishedCount()))]);
     }
 
     /** Deleting a category only detaches it from movies; the movies stay. */
@@ -45,6 +45,12 @@ class CategoryController extends Controller
         $category->delete();
 
         return response()->noContent();
+    }
+
+    /** movies_count counts only movies that are live on the site. */
+    private static function publishedCount(): array
+    {
+        return ['movies' => fn ($q) => $q->published()];
     }
 
     private function present(Category $c): array

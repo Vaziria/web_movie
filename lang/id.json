@@ -56,5 +56,11 @@
     "h": "j",
     "m": "m",
     "Search in :name": "Cari di :name",
-    "Search “:q” in all categories": "Cari “:q” di semua kategori"
+    "Search “:q” in all categories": "Cari “:q” di semua kategori",
+    "Trending": "Trending",
+    "Trending this week": "Trending minggu ini",
+    "See all": "Lihat semua",
+    "All movies": "Semua film",
+    "Watch movies online on :site": "Nonton film online di :site",
+    ":count view this week|:count views this week": ":count kali ditonton minggu ini"
 }

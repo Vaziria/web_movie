@@ -5,6 +5,8 @@ namespace App\Http\Requests;
 use App\Models\Movie;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+use Throwable;
 
 class MovieRequest extends FormRequest
 {
@@ -44,6 +46,11 @@ class MovieRequest extends FormRequest
         if ($this->hasFile('thumbnail') || ($this->boolean('_admin_form') && blank($this->input('thumbnail_url')))) {
             $this->request->remove('thumbnail_url');
         }
+
+        // Admin form: the date box only counts when "Schedule" is picked.
+        if ($this->boolean('_admin_form') && $this->input('status') !== 'scheduled') {
+            $this->request->remove('published_at');
+        }
     }
 
     public function rules(): array
@@ -65,6 +72,31 @@ class MovieRequest extends FormRequest
             'categories' => ['sometimes', 'nullable', 'array', 'max:10'],
             'categories.*' => ['string', 'max:100'],
             'remove_thumbnail' => ['sometimes', 'boolean'],
+            'status' => ['sometimes', 'in:draft,published,scheduled'],
+            'published_at' => ['nullable', 'date', 'required_if:status,scheduled'],
         ];
+    }
+
+    /** A scheduled time must be in the future; "published" cannot be in the future. */
+    public function after(): array
+    {
+        return [function (Validator $validator) {
+            if ($validator->errors()->has('published_at') || blank($this->input('published_at'))) {
+                return;
+            }
+            try {
+                $at = Movie::parsePublishedAt($this->input('published_at'));
+            } catch (Throwable) {
+                $validator->errors()->add('published_at', 'The published at field must be a valid date.');
+
+                return;
+            }
+            $status = $this->input('status');
+            if ($status === 'scheduled' && ! $at->isFuture()) {
+                $validator->errors()->add('published_at', 'The scheduled time must be in the future.');
+            } elseif ($status === 'published' && $at->isFuture()) {
+                $validator->errors()->add('published_at', 'A future time needs status "scheduled".');
+            }
+        }];
     }
 }

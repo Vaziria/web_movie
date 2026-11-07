@@ -13,18 +13,18 @@ class SeoController extends Controller
     {
         $pages = collect([[
             'route' => 'movies.index', 'params' => [],
-            'lastmod' => Movie::max('updated_at'), 'changefreq' => 'daily', 'priority' => '1.0',
+            'lastmod' => Movie::published()->max('updated_at'), 'changefreq' => 'daily', 'priority' => '1.0',
         ]]);
 
-        Category::query()->whereHas('movies')->orderBy('name')
-            ->withMax('movies', 'movies.updated_at')
+        Category::query()->whereHas('movies', fn ($m) => $m->published())->orderBy('name')
+            ->withMax(['movies' => fn ($m) => $m->published()], 'movies.updated_at')
             ->get()
             ->each(fn (Category $c) => $pages->push([
                 'route' => 'movies.category', 'params' => $c,
                 'lastmod' => $c->movies_max_moviesupdated_at, 'changefreq' => 'daily', 'priority' => '0.8',
             ]));
 
-        Movie::query()->latest('id')->limit(20000)->get(['slug', 'updated_at'])
+        Movie::query()->published()->latest('id')->limit(20000)->get(['slug', 'updated_at'])
             ->each(fn (Movie $m) => $pages->push([
                 'route' => 'movies.show', 'params' => $m,
                 'lastmod' => $m->updated_at, 'changefreq' => 'weekly', 'priority' => '0.6',

@@ -17,15 +17,22 @@ class MovieController extends Controller
     {
         $q = trim((string) $request->query('q', ''));
         $category = (string) $request->query('category', '');   // a slug, "none" (no category) or "" (all)
+        $status = in_array($request->query('status'), ['published', 'scheduled', 'draft'], true) ? (string) $request->query('status') : '';
+        $statusCounts = [
+            'scheduled' => Movie::query()->status('scheduled')->count(),
+            'draft' => Movie::query()->status('draft')->count(),
+        ];
         $categories = Category::query()->withCount('movies')->orderBy('name')->get(['id', 'name', 'slug']);
 
         $movies = Movie::query()->with('categories')
             ->withCount(['reports as open_reports_count' => fn ($r) => $r->whereNull('resolved_at')])
             ->when($category === 'none', fn ($m) => $m->whereDoesntHave('categories'))
+            ->when($status !== '', fn ($m) => $m->status($status))
             ->browse($q, 'created', $category !== 'none' ? $category : null)
+            ->reorder()->orderByDesc('created_at')->orderByDesc('id')   // admin: most recently added first, drafts included
             ->paginate(20)->withQueryString();
 
-        return view('admin.movies.index', compact('movies', 'q', 'category', 'categories'));
+        return view('admin.movies.index', compact('movies', 'q', 'category', 'categories', 'status', 'statusCounts'));
     }
 
     public function create(): View

@@ -12,6 +12,10 @@ Two ways to manage the site:
    - *Embed code or player URL*: paste the full vidara `<iframe ...>` code (or an https URL).
    - *Duration (minutes)*: e.g. `105`. Shown as "1j 45m" and used by the **Durasi** sort, so fill it in;
      movies without it go last when sorting by duration.
+   - *Publish*: **Publish now**, **Draft** (hidden from visitors; you can open it with *Preview*), or **Schedule**
+     with a date and time in WIB. A scheduled movie goes live by itself at that time; nothing else to run.
+     Drafts and scheduled movies show "● Draft" / "◷ Scheduled · <time>" in the movie list, which can also be
+     filtered by status.
    - *Backup players*: optional, one per line (iframe code or https URL, max 5). Visitors see buttons
      "Server 1, 2, 3 ..." under the player and can switch when one host is down.
    - *Thumbnail*: upload a 16:9 image (jpg/png/webp, max 2 MB) or give an image URL. Leaving both empty keeps the
@@ -83,9 +87,18 @@ The response's `data.url` is the public page.
 
 Categories with no movies are hidden from the site menu and the sitemap.
 
+## Home page
+
+The home page shows two rows above the newest movies:
+
+- **Trending minggu ini**: most views in the last 7 days, numbered #1-#10. Appears once movies get views.
+- **Rating tertinggi**: best average rating (rated movies only).
+
+Each row has "Lihat semua" to the full sorted list. Drafts and scheduled movies never appear.
+
 ## What visitors can filter
 
-Category chips (Semua / Action / Drama ...), sort tabs (Terbaru, Rating tertinggi, Populer, Durasi; tap the active
+Category chips (Semua / Action / Drama ...), sort tabs (Terbaru, Trending, Rating, Populer, Durasi; tap the active
 tab again to reverse) and search all combine: picking a category keeps the sort and search, and searching on a
 category page searches inside that category. A chip only appears once its category has at least one movie.
 

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Movie extends Model
@@ -16,9 +18,14 @@ class Movie extends Model
     /** @use HasFactory<MovieFactory> */
     use HasFactory;
 
-    /** Sort keys accepted by the list endpoints => [column, direction]. */
+    /**
+     * Sort keys accepted by the list endpoints => [column, default direction]. "created" (Newest) uses the publish
+     * time, so a scheduled movie shows up as new when it goes live. "trending" orders by views in the last
+     * config('movies.trending_days') days, then all-time views.
+     */
     public const SORTS = [
-        'created' => ['created_at', 'desc'],
+        'created' => ['published_at', 'desc'],
+        'trending' => ['views', 'desc'],
         'rating' => ['rating_avg', 'desc'],
         'views' => ['views', 'desc'],
         'duration' => ['duration_minutes', 'desc'],
@@ -36,7 +43,7 @@ class Movie extends Model
 
     protected $fillable = [
         'title', 'slug', 'synopsis', 'thumbnail_url', 'embed_url', 'backup_embed_urls',
-        'release_year', 'duration_minutes',
+        'release_year', 'duration_minutes', 'published_at',
     ];
 
     protected $hidden = ['user_id'];
@@ -50,6 +57,7 @@ class Movie extends Model
             'release_year' => 'integer',
             'duration_minutes' => 'integer',
             'backup_embed_urls' => 'array',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -58,6 +66,10 @@ class Movie extends Model
         static::creating(function (Movie $movie) {
             if (blank($movie->slug)) {
                 $movie->slug = static::uniqueSlug($movie->title);
+            }
+            // Not set at all = publish now. An explicit null (draft) is kept.
+            if (! array_key_exists('published_at', $movie->getAttributes())) {
+                $movie->published_at = $movie->created_at ?? now();
             }
         });
 
@@ -180,6 +192,86 @@ class Movie extends Model
         return $this->belongsToMany(Category::class)->orderBy('name');
     }
 
+    /** Live on the public site: published_at is set and not in the future. */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->whereNotNull('published_at')->where('published_at', '<=', now());
+    }
+
+    /** Draft / scheduled / published (admin filter). */
+    public function scopeStatus(Builder $query, string $status): Builder
+    {
+        return match ($status) {
+            'draft' => $query->whereNull('published_at'),
+            'scheduled' => $query->where('published_at', '>', now()),
+            'published' => $query->published(),
+            default => $query,
+        };
+    }
+
+    /** Adds `week_views`: views in the trending window. */
+    public function scopeWithWeekViews(Builder $query): Builder
+    {
+        return $query->addSelect(['week_views' => DB::table('movie_view_days')
+            ->selectRaw('COALESCE(SUM(movie_view_days.views), 0)')
+            ->whereColumn('movie_view_days.movie_id', 'movies.id')
+            ->where('movie_view_days.day', '>=', static::trendingSince()),
+        ]);
+    }
+
+    /** First day (UTC date string) of the trending window. */
+    public static function trendingSince(): string
+    {
+        return now()->subDays(max(1, (int) config('movies.trending_days', 7)) - 1)->toDateString();
+    }
+
+    public function status(): string
+    {
+        return match (true) {
+            $this->published_at === null => 'draft',
+            $this->published_at->isFuture() => 'scheduled',
+            default => 'published',
+        };
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status() === 'published';
+    }
+
+    /** published_at in the admin time zone, e.g. "8 Nov 2026 20:00 WIB". */
+    public function publishedAtLabel(): ?string
+    {
+        return $this->published_at?->copy()->timezone(config('movies.admin_timezone'))->format('j M Y H:i')
+            .' '.config('movies.admin_timezone_label');
+    }
+
+    /** Count a view for today's trending stats (movies.views is incremented separately). */
+    public function recordDailyView(): void
+    {
+        DB::table('movie_view_days')->upsert(
+            [['movie_id' => $this->id, 'day' => now()->toDateString(), 'views' => 1]],
+            ['movie_id', 'day'],
+            ['views' => DB::raw('views + 1')],
+        );
+
+        if (random_int(1, 200) === 1) {
+            DB::table('movie_view_days')
+                ->where('day', '<', now()->subDays((int) config('movies.view_days_keep', 90))->toDateString())
+                ->delete();
+        }
+    }
+
+    /** Parse a published_at value: no offset = admin time zone. Returns UTC, or null for blank input. */
+    public static function parsePublishedAt(mixed $value): ?Carbon
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        return Carbon::parse((string) $value, config('movies.admin_timezone'))->utc();
+    }
+
     /**
      * Apply search, category filter and sort. Unknown sort keys fall back to "created"; $direction ("asc"/"desc")
      * overrides the sort's default. Movies without a value for the sort column (e.g. no duration) always go last.
@@ -197,8 +289,16 @@ class Movie extends Model
             $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
         }
 
-        [$column, $default] = self::SORTS[$sort] ?? self::SORTS['created'];
+        $sort = array_key_exists((string) $sort, self::SORTS) ? $sort : 'created';
+        [$column, $default] = self::SORTS[$sort];
         $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : $default;
+
+        if ($sort === 'trending') {
+            return $query->withWeekViews()
+                ->orderBy('week_views', $direction)
+                ->orderBy('views', $direction)
+                ->orderBy('id', $direction);
+        }
 
         return $query
             ->orderByRaw($query->getGrammar()->wrap($column).' IS NULL')
