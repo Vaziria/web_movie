@@ -67,9 +67,18 @@
             </nav>
         </div>
         <div class="flex w-full items-center gap-3 md:w-auto">
-            <form method="get" action="{{ lroute('movies.index') }}" role="search" class="flex w-full gap-2 md:w-96">
-                <label for="q" class="sr-only">{{ __('Search movies') }}</label>
-                <input id="q" type="search" name="q" value="{{ $q ?? '' }}" placeholder="{{ __('Search movies') }}" maxlength="100"
+            @php
+                // On a category page the search stays inside that category (and keeps the sort).
+                $searchIn = isset($categories) ? ($category ?? null) : null;
+                $searchPlaceholder = $searchIn ? __('Search in :name', ['name' => $searchIn->name]) : __('Search movies');
+            @endphp
+            <form method="get" action="{{ $searchIn ? lroute('movies.category', $searchIn) : lroute('movies.index') }}" role="search" class="flex w-full gap-2 md:w-96">
+                @if (isset($sort, $dir, $defaultDir))
+                    @if ($sort !== 'created')<input type="hidden" name="sort" value="{{ $sort }}">@endif
+                    @if ($dir !== $defaultDir)<input type="hidden" name="dir" value="{{ $dir }}">@endif
+                @endif
+                <label for="q" class="sr-only">{{ $searchPlaceholder }}</label>
+                <input id="q" type="search" name="q" value="{{ $q ?? '' }}" placeholder="{{ $searchPlaceholder }}" maxlength="100"
                        class="h-11 min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-900 px-3 text-base text-white placeholder:text-neutral-500 focus:border-accent focus:outline-none">
                 <button type="submit" class="h-11 rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover">{{ __('Search') }}</button>
             </form>

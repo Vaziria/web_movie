@@ -8,14 +8,28 @@
         <a href="{{ route('admin.movies.create') }}" class="inline-flex h-10 items-center rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover">+ New movie</a>
     </div>
 
-    <form method="get" class="mb-4 flex gap-2">
+    <form method="get" class="mb-4 flex flex-wrap gap-2">
         <input type="search" name="q" value="{{ $q }}" placeholder="Search title or synopsis" aria-label="Search"
-               class="h-10 min-w-0 flex-1 rounded-lg border border-ink-700 bg-ink-900 px-3 text-base text-white focus:border-accent focus:outline-none">
-        <button class="h-10 rounded-lg border border-ink-700 px-4 text-sm hover:border-neutral-500">Search</button>
+               class="h-10 min-w-0 flex-1 basis-48 rounded-lg border border-ink-700 bg-ink-900 px-3 text-base text-white focus:border-accent focus:outline-none">
+        <select name="category" aria-label="Category" class="h-10 min-w-0 flex-1 basis-36 rounded-lg border border-ink-700 bg-ink-900 px-2 text-sm text-neutral-200 sm:flex-none">
+            <option value="">All categories</option>
+            @foreach ($categories as $c)
+                <option value="{{ $c->slug }}" @selected($category === $c->slug)>{{ $c->name }} ({{ $c->movies_count }})</option>
+            @endforeach
+            <option value="none" @selected($category === 'none')>No category</option>
+        </select>
+        <button class="h-10 rounded-lg border border-ink-700 px-4 text-sm hover:border-neutral-500">Filter</button>
+        @if ($q !== '' || $category !== '')
+            <a href="{{ route('admin.movies.index') }}" class="inline-flex h-10 items-center px-2 text-sm text-neutral-400 hover:text-white">Clear</a>
+        @endif
     </form>
 
     @if ($movies->isEmpty())
-        <p class="py-12 text-center text-neutral-500">No movies yet. <a href="{{ route('admin.movies.create') }}" class="text-accent">Add the first one</a>.</p>
+        @if ($q !== '' || $category !== '')
+            <p class="py-12 text-center text-neutral-500">No movies match this filter. <a href="{{ route('admin.movies.index') }}" class="text-accent">Show all</a>.</p>
+        @else
+            <p class="py-12 text-center text-neutral-500">No movies yet. <a href="{{ route('admin.movies.create') }}" class="text-accent">Add the first one</a>.</p>
+        @endif
     @else
         <ul class="divide-y divide-ink-800 border-y border-ink-800">
             @foreach ($movies as $movie)

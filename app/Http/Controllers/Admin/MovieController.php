@@ -16,11 +16,16 @@ class MovieController extends Controller
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
+        $category = (string) $request->query('category', '');   // a slug, "none" (no category) or "" (all)
+        $categories = Category::query()->withCount('movies')->orderBy('name')->get(['id', 'name', 'slug']);
+
         $movies = Movie::query()->with('categories')
             ->withCount(['reports as open_reports_count' => fn ($r) => $r->whereNull('resolved_at')])
-            ->browse($q, 'created')->paginate(20)->withQueryString();
+            ->when($category === 'none', fn ($m) => $m->whereDoesntHave('categories'))
+            ->browse($q, 'created', $category !== 'none' ? $category : null)
+            ->paginate(20)->withQueryString();
 
-        return view('admin.movies.index', compact('movies', 'q'));
+        return view('admin.movies.index', compact('movies', 'q', 'category', 'categories'));
     }
 
     public function create(): View

@@ -8,7 +8,7 @@ Two ways to manage the site:
 ## Admin panel
 
 1. Open https://moviemov.id/admin and log in with the admin email and password.
-2. **Movies**: list with search; **+ New movie** opens the form:
+2. **Movies**: list with search and a category filter (incl. "No category", to find movies you forgot to tag); **+ New movie** opens the form:
    - *Embed code or player URL*: paste the full vidara `<iframe ...>` code (or an https URL).
    - *Duration (minutes)*: e.g. `105`. Shown as "1j 45m" and used by the **Durasi** sort, so fill it in;
      movies without it go last when sorting by duration.
@@ -82,6 +82,12 @@ The response's `data.url` is the public page.
 - Delete: `DELETE /api/categories/{slug}` (movies stay, they just lose this category)
 
 Categories with no movies are hidden from the site menu and the sitemap.
+
+## What visitors can filter
+
+Category chips (Semua / Action / Drama ...), sort tabs (Terbaru, Rating tertinggi, Populer, Durasi; tap the active
+tab again to reverse) and search all combine: picking a category keeps the sort and search, and searching on a
+category page searches inside that category. A chip only appears once its category has at least one movie.
 
 ## Languages
 

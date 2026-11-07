@@ -6,6 +6,9 @@
         $sorts = App\Models\Movie::SORTS;
         $listUrl = fn (array $params) => ($category ? lroute('movies.category', $category) : lroute('movies.index'))
             .(($qs = http_build_query(array_filter($params))) ? '?'.$qs : '');
+        // Switching category keeps the current search and sort.
+        $keep = array_filter(['q' => $q, 'sort' => $sort === 'created' ? null : $sort, 'dir' => $dir === $defaultDir ? null : $dir]);
+        $chipUrl = fn ($c) => ($c ? lroute('movies.category', $c) : lroute('movies.index')).($keep ? '?'.http_build_query($keep) : '');
     @endphp
 
     <h1 class="mb-4 text-xl font-semibold text-white md:text-2xl">{{ $heading }}</h1>
@@ -15,10 +18,10 @@
 
     @if ($categories->isNotEmpty())
         <nav aria-label="{{ __('Categories') }}" class="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
-            <a href="{{ lroute('movies.index') }}"
+            <a href="{{ $chipUrl(null) }}" @if ($keep) rel="nofollow" @endif @if (! $category) aria-current="true" @endif
                @class(['shrink-0 rounded-full border px-3.5 py-2 text-sm', 'border-white bg-white text-ink-950' => ! $category, 'border-ink-700 text-neutral-300 hover:border-neutral-500' => $category])>{{ __('All') }}</a>
             @foreach ($categories->sortByDesc(fn ($c) => $category?->is($c)) as $c)
-                <a href="{{ lroute('movies.category', $c) }}"
+                <a href="{{ $chipUrl($c) }}" @if ($keep) rel="nofollow" @endif @if ($category?->is($c)) aria-current="true" @endif
                    @class(['shrink-0 rounded-full border px-3.5 py-2 text-sm', 'border-white bg-white text-ink-950' => $category?->is($c), 'border-ink-700 text-neutral-300 hover:border-neutral-500' => ! $category?->is($c)])>{{ $c->name }}</a>
             @endforeach
         </nav>
@@ -46,7 +49,12 @@
     @endif
 
     @if ($movies->isEmpty())
-        <p class="py-16 text-center text-neutral-500">{{ __('No movies found.') }}</p>
+        <div class="py-16 text-center text-neutral-500">
+            <p>{{ __('No movies found.') }}</p>
+            @if ($category && $q !== '')
+                <a href="{{ $chipUrl(null) }}" rel="nofollow" class="mt-3 inline-flex h-11 items-center rounded-lg border border-ink-700 px-4 text-sm text-neutral-200 hover:border-neutral-500">{{ __('Search “:q” in all categories', ['q' => $q]) }}</a>
+            @endif
+        </div>
     @else
         <ul class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
             @foreach ($movies as $movie)

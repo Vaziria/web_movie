@@ -54,5 +54,7 @@
     ":count hour|:count hours": ":count jam",
     ":count minute|:count minutes": ":count menit",
     "h": "j",
-    "m": "m"
+    "m": "m",
+    "Search in :name": "Cari di :name",
+    "Search “:q” in all categories": "Cari “:q” di semua kategori"
 }

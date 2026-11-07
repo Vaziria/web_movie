@@ -86,7 +86,7 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 | Query | Default | Notes |
 | --- | --- | --- |
 | `q` | | search in title and synopsis, max 100 chars |
-| `category` | | category slug |
+| `category` | | category slug. Combine freely with `q`, `sort` and `dir`. |
 | `sort` | `created` | `created` (newest), `rating` (highest), `views` (most viewed), `duration` (longest) |
 | `dir` | per sort (`desc`) | `desc` or `asc` to reverse, e.g. `sort=duration&dir=asc` = shortest first. Movies with no value (e.g. no duration) are always listed last. |
 | `per_page` | `24` | 1-100 |
