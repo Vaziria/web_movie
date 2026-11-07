@@ -18,6 +18,13 @@
             </a>
             <a href="{{ route('admin.movies.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.movies.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.movies.*')])>Movies</a>
             <a href="{{ route('admin.categories.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.categories.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.categories.*')])>Categories</a>
+            @php $openReports = \App\Models\PlayerReport::openMovieCount(); @endphp
+            <a href="{{ route('admin.reports.index') }}" @class(['inline-flex shrink-0 items-center gap-1.5 py-3', 'text-white' => request()->routeIs('admin.reports.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.reports.*')])>
+                Reports
+                @if ($openReports > 0)
+                    <span class="rounded-full bg-accent px-1.5 text-xs font-medium leading-5 text-white" aria-label="{{ $openReports }} movies with open reports">{{ $openReports }}</span>
+                @endif
+            </a>
             <a href="{{ route('movies.index') }}" class="shrink-0 py-3 text-neutral-400 hover:text-white" target="_blank" rel="noopener">View site</a>
             <form method="post" action="{{ route('admin.logout') }}" class="ml-auto shrink-0">
                 @csrf

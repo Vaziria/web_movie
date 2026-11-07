@@ -16,7 +16,9 @@ class MovieController extends Controller
     public function index(Request $request): View
     {
         $q = trim((string) $request->query('q', ''));
-        $movies = Movie::query()->with('categories')->browse($q, 'created')->paginate(20)->withQueryString();
+        $movies = Movie::query()->with('categories')
+            ->withCount(['reports as open_reports_count' => fn ($r) => $r->whereNull('resolved_at')])
+            ->browse($q, 'created')->paginate(20)->withQueryString();
 
         return view('admin.movies.index', compact('movies', 'q'));
     }

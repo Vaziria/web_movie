@@ -133,7 +133,8 @@ class AdminPanelTest extends TestCase
         $same->categories()->attach($action);
         Movie::factory()->create(['title' => 'Filler Newest']);
 
-        $html = $this->get('/movies/main-feature')->assertOk()->assertSee('More like this')->getContent();
+        $html = $this->get('/movies/main-feature')->assertOk()->assertSee('Film serupa')->getContent();
+        $this->get('/en/movies/main-feature')->assertOk()->assertSee('More like this');
         $this->assertStringContainsString('Same Category Pick', $html);
         $this->assertStringContainsString('Filler Newest', $html);
         $this->assertLessThan(strpos($html, 'Filler Newest'), strpos($html, 'Same Category Pick'));

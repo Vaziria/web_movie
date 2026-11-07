@@ -27,6 +27,9 @@
                     </a>
                     <div class="min-w-0 flex-1">
                         <a href="{{ route('admin.movies.edit', $movie) }}" class="line-clamp-1 font-medium text-white hover:underline">{{ $movie->title }}</a>
+                        @if ($movie->open_reports_count > 0)
+                            <a href="{{ route('admin.reports.index') }}" class="text-xs font-medium text-red-400 hover:underline">⚠ {{ $movie->open_reports_count }} broken-video {{ \Illuminate\Support\Str::plural('report', $movie->open_reports_count) }}</a>
+                        @endif
                         <p class="line-clamp-1 text-xs text-neutral-500">
                             {{ $movie->categories->pluck('name')->join(', ') ?: 'No category' }}
                             · ★ {{ number_format($movie->rating_avg, 1) }} ({{ $movie->rating_count }})

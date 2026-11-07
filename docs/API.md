@@ -63,6 +63,7 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
   "synopsis": "Sample synopsis ...",
   "thumbnail_url": "https://moviemov.id/uploads/thumbnails/GQY2Dokg....jpg",
   "embed_url": "https://vidara.to/e/8SdwOuKAAk92t",
+  "backup_embed_urls": ["https://vidara.to/e/AnotherId"],
   "release_year": 2025,
   "duration_minutes": 111,
   "categories": [{ "name": "Sci-Fi", "slug": "sci-fi" }],
@@ -77,6 +78,8 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 
 - `views`: page views on the website (one per visitor session). API reads do not count.
 - `rating_avg`: average of visitor ratings, 1-5, two decimals. `0` when unrated.
+- `backup_embed_urls`: extra players shown as Server 2, 3, ... (Server 1 is `embed_url`). `[]` when none.
+- `url`: the Indonesian page. The English page is the same path under `/en` (e.g. `/en/movies/<slug>`).
 
 ### `GET /movies` (public)
 
@@ -107,6 +110,7 @@ Fields:
 | --- | --- | --- |
 | `title` | yes | string, max 255 |
 | `embed_url` | yes | `https` URL, max 2048. A full `<iframe src="...">` embed code is also accepted; its `src` is used. `https://vidara.to/v/<id>` is rewritten to `https://vidara.to/e/<id>`. |
+| `backup_embed_urls` | no | up to 5 backup players. JSON array of `https` URLs or `<iframe>` codes; in multipart, one per line. Duplicates and copies of `embed_url` are dropped. `[]` or `null` removes them all. |
 | `thumbnail_url` | no | `http`/`https` image URL. Ignored when a `thumbnail` file is uploaded in the same request. |
 | `thumbnail` | no | image file (multipart only): jpg, jpeg, png, webp; max 2 MB. 16:9 recommended (e.g. 1280x720). |
 | `categories` | no | list of names, max 10, each max 100 chars. JSON array, or comma-separated string in multipart (`Action, Drama`). Names are matched by slug (`sci fi` = `Sci-Fi`); unknown names create a new category. |
@@ -218,6 +222,34 @@ Change `name`, `slug` and/or `description`. Changing `slug` changes the category
 ### `DELETE /categories/{slug}` (token)
 
 `204 No Content`. The category is removed from its movies; the movies themselves are kept.
+
+## Broken video reports (token)
+
+Visitors can press "Video not working?" under the player. Reports are grouped per movie.
+
+### `GET /reports`
+
+Open reports, most reported movie first:
+
+```json
+{
+  "data": [
+    {
+      "movie": { "slug": "night-train", "title": "Night Train" },
+      "open_reports": 3,
+      "servers": { "1": 2, "2": 1 },
+      "reasons": { "not_loading": 2, "wrong_video": 1 },
+      "latest_at": "2026-11-08T03:12:00+00:00"
+    }
+  ]
+}
+```
+
+Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`.
+
+### `POST /reports/{movie_slug}/resolve`
+
+Marks every open report of that movie as fixed: `{ "resolved": 3 }`.
 
 ## Errors
 

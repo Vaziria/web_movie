@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Movie;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,8 +17,20 @@ class MovieRequest extends FormRequest
     {
         // Accept a pasted `<iframe src="...">` embed code as embed_url by pulling out its src.
         $embed = $this->input('embed_url');
-        if (is_string($embed) && preg_match('~<iframe\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']~i', $embed, $m)) {
-            $this->merge(['embed_url' => html_entity_decode(trim($m[1]))]);
+        if (is_string($embed)) {
+            $this->merge(['embed_url' => Movie::extractEmbedSrc($embed)]);
+        }
+
+        // Backup players: JSON array, or one per line (admin textarea / multipart). Each may be iframe code.
+        $backups = $this->input('backup_embed_urls');
+        if (is_string($backups)) {
+            $backups = preg_split('/\R/', $backups);
+        }
+        if (is_array($backups)) {
+            $this->merge(['backup_embed_urls' => array_values(array_filter(
+                array_map(fn ($b) => is_string($b) ? Movie::extractEmbedSrc($b) : $b, $backups),
+                fn ($b) => $b !== '' && $b !== null,
+            ))]);
         }
 
         // Multipart forms send categories as "Action, Drama"; JSON sends an array.
@@ -42,6 +55,8 @@ class MovieRequest extends FormRequest
             'title' => [$required, 'string', 'max:255'],
             'slug' => ['sometimes', 'nullable', 'alpha_dash', 'max:255', Rule::unique('movies', 'slug')->ignore($movie?->id)],
             'embed_url' => [$required, 'string', 'max:2048', 'url:https'],
+            'backup_embed_urls' => ['sometimes', 'nullable', 'array', 'max:'.Movie::MAX_BACKUPS],
+            'backup_embed_urls.*' => ['string', 'max:2048', 'url:https'],
             'thumbnail_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https'],
             'thumbnail' => ['sometimes', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'synopsis' => ['sometimes', 'nullable', 'string', 'max:10000'],

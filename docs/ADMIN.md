@@ -10,13 +10,19 @@ Two ways to manage the site:
 1. Open https://moviemov.id/admin and log in with the admin email and password.
 2. **Movies**: list with search; **+ New movie** opens the form:
    - *Embed code or player URL*: paste the full vidara `<iframe ...>` code (or an https URL).
+   - *Backup players*: optional, one per line (iframe code or https URL, max 5). Visitors see buttons
+     "Server 1, 2, 3 ..." under the player and can switch when one host is down.
    - *Thumbnail*: upload a 16:9 image (jpg/png/webp, max 2 MB) or give an image URL. Leaving both empty keeps the
      current one; tick *Remove current thumbnail* to delete it.
    - *Categories*: comma separated (`Action, Drama`). New names are created; existing names are listed under the box.
    - *URL slug*: leave empty to generate it from the title. Don't change it after the page is indexed.
    - **Delete movie** is at the bottom of the edit page.
-3. **Categories**: create, rename, set the slug and description, or delete (movies are kept).
-4. **Log out** when you are done on a shared device.
+3. **Reports** (badge = number of movies with open reports): visitors press "Video not working?" under the
+   player. Each row shows which server failed and why. Use **Test** to open the page, **Edit** to replace the
+   broken embed (or add a backup player), then **Mark fixed**. Movies with open reports also show a red
+   "⚠ broken-video report" line in the movie list. One report per visitor, movie and server per day.
+4. **Categories**: create, rename, set the slug and description, or delete (movies are kept).
+5. **Log out** when you are done on a shared device.
 
 The panel is hidden from search engines (`noindex`, and `/admin` is disallowed in robots.txt). Login is limited to
 5 attempts per minute.
@@ -74,6 +80,13 @@ The response's `data.url` is the public page.
 - Delete: `DELETE /api/categories/{slug}` (movies stay, they just lose this category)
 
 Categories with no movies are hidden from the site menu and the sitemap.
+
+## Languages
+
+The public site is **Indonesian at `https://moviemov.id/`** and **English at `https://moviemov.id/en/`**, with an
+ID / EN switch in the header. Only the site's own texts are translated; movie titles, synopses and category names
+are shown as you write them, so write them in Indonesian. Google gets both versions with `hreflang` links and both
+are in the sitemap. The admin panel is in English.
 
 ## SEO tips
 

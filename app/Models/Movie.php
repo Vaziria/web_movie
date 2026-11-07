@@ -27,11 +27,14 @@ class Movie extends Model
 
     public const MAX_SCORE = 5;
 
+    /** Backup players allowed in addition to embed_url (Server 1). */
+    public const MAX_BACKUPS = 5;
+
     /** Uploaded thumbnails live here (relative to public/). No symlinks: they are disabled on the shared host. */
     public const THUMBNAIL_DIR = 'uploads/thumbnails';
 
     protected $fillable = [
-        'title', 'slug', 'synopsis', 'thumbnail_url', 'embed_url',
+        'title', 'slug', 'synopsis', 'thumbnail_url', 'embed_url', 'backup_embed_urls',
         'release_year', 'duration_minutes',
     ];
 
@@ -45,6 +48,7 @@ class Movie extends Model
             'rating_count' => 'integer',
             'release_year' => 'integer',
             'duration_minutes' => 'integer',
+            'backup_embed_urls' => 'array',
         ];
     }
 
@@ -59,6 +63,12 @@ class Movie extends Model
         static::saving(function (Movie $movie) {
             if ($movie->isDirty('embed_url')) {
                 $movie->embed_url = static::normalizeEmbedUrl($movie->embed_url);
+            }
+            if ($movie->isDirty('backup_embed_urls')) {
+                $backups = collect($movie->backup_embed_urls ?? [])
+                    ->map(fn ($u) => static::normalizeEmbedUrl(trim((string) $u)))
+                    ->filter()->unique()->reject(fn ($u) => $u === $movie->embed_url)->values()->all();
+                $movie->backup_embed_urls = $backups ?: null;
             }
         });
 
@@ -107,6 +117,24 @@ class Movie extends Model
         }
     }
 
+    /** Pull the src out of a pasted `<iframe src="...">` embed code; other input is returned trimmed. */
+    public static function extractEmbedSrc(string $value): string
+    {
+        if (preg_match('~<iframe\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']~i', $value, $m)) {
+            return html_entity_decode(trim($m[1]));
+        }
+
+        return trim($value);
+    }
+
+    /** All players, Server 1 first: [1 => url, 2 => url, ...]. */
+    public function players(): array
+    {
+        $all = array_values(array_filter([$this->embed_url, ...($this->backup_embed_urls ?? [])]));
+
+        return array_combine(range(1, max(1, count($all))), $all ?: ['']);
+    }
+
     /** Absolute URL of the thumbnail (uploaded file or remote URL), or null. */
     public function thumbnailSrc(): ?string
     {
@@ -123,7 +151,7 @@ class Movie extends Model
     {
         $text = trim(preg_replace('/\s+/', ' ', (string) $this->synopsis));
 
-        return $text !== '' ? Str::limit($text, $limit) : "Watch {$this->title} online on ".config('app.name').'.';
+        return $text !== '' ? Str::limit($text, $limit) : __('Watch :title online on :site.', ['title' => $this->title, 'site' => config('app.name')]);
     }
 
     public function getRouteKeyName(): string
@@ -139,6 +167,11 @@ class Movie extends Model
     public function ratings(): HasMany
     {
         return $this->hasMany(Rating::class);
+    }
+
+    public function reports(): HasMany
+    {
+        return $this->hasMany(PlayerReport::class);
     }
 
     public function categories(): BelongsToMany

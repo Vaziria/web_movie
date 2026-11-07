@@ -48,7 +48,7 @@ class SeoTest extends TestCase
 
         $html = $this->get('/movies/'.$movie->slug)->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Night Train (2024) - Watch Online | '.config('app.name').'</title>', $html);
+        $this->assertStringContainsString('<title>Night Train (2024) - Nonton Online | '.config('app.name').'</title>', $html);
         $this->assertStringContainsString('<meta name="description" content="A long ride.">', $html);
         $this->assertStringContainsString('<link rel="canonical" href="'.url('/movies/night-train').'">', $html);
         $this->assertStringContainsString('<meta property="og:image" content="https://img.example.com/n.jpg">', $html);

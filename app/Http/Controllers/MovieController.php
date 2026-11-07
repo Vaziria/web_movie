@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use App\Models\Movie;
+use App\Models\PlayerReport;
 use App\Services\RatingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,6 +18,7 @@ class MovieController extends Controller
 {
     public const VOTER_COOKIE = 'voter';
 
+    /** Sort key => English label (translated in views with __()). */
     public const SORT_LABELS = ['created' => 'Newest', 'rating' => 'Top rated', 'views' => 'Most viewed'];
 
     public function index(Request $request): View
@@ -41,19 +44,29 @@ class MovieController extends Controller
 
         $categories = Category::query()->whereHas('movies')->orderBy('name')->get(['id', 'name', 'slug']);
 
-        $base = $category ? route('movies.category', $category) : route('movies.index');
         $name = config('app.name');
-        $heading = $category ? $category->name.' movies' : ($q !== '' ? "Search: {$q}" : 'Latest movies');
+        $heading = $category
+            ? __(':name movies', ['name' => $category->name])
+            : ($q !== '' ? __('Search: :q', ['q' => $q]) : __('Latest movies'));
+
+        // Sort variants duplicate the main list, so they all point at it; search results are not indexed.
+        $urlIn = function (string $locale) use ($category, $page) {
+            $base = $category ? lroute('movies.category', $category, $locale) : lroute('movies.index', [], $locale);
+
+            return $page > 1 ? $base.'?page='.$page : $base;
+        };
 
         $seo = [
             'title' => $category
-                ? "{$category->name} Movies - Watch Online | {$name}"
-                : ($q !== '' ? "Search \"{$q}\" | {$name}" : "{$name} - Watch Movies Online"),
+                ? __(':name Movies - Watch Online | :site', ['name' => $category->name, 'site' => $name])
+                : ($q !== '' ? __('Search ":q" | :site', ['q' => $q, 'site' => $name]) : __(':site - Watch Movies Online', ['site' => $name])),
             'description' => $category
-                ? ($category->description ? Str::limit(trim(preg_replace('/\s+/', ' ', $category->description)), 155) : "Watch {$category->name} movies online on {$name}. Browse the newest, top rated and most viewed {$category->name} titles.")
-                : "Watch movies online on {$name}. Browse the newest, top rated and most viewed movies by category.",
-            // Sort variants duplicate the main list, so they all point at it; search results are not indexed.
-            'canonical' => $page > 1 ? $base.'?page='.$page : $base,
+                ? ($category->description
+                    ? Str::limit(trim(preg_replace('/\s+/', ' ', $category->description)), 155)
+                    : __('Watch :name movies online on :site. Browse the newest, top rated and most viewed :name titles.', ['name' => $category->name, 'site' => $name]))
+                : __('Watch movies online on :site. Browse the newest, top rated and most viewed movies by category.', ['site' => $name]),
+            'canonical' => $urlIn(app()->getLocale()),
+            'alternates' => $q === '' ? $this->alternates($urlIn) : [],
             'robots' => $q !== '' ? 'noindex, follow' : 'index, follow',
             'type' => 'website',
         ];
@@ -65,7 +78,7 @@ class MovieController extends Controller
             'itemListElement' => $movies->values()->map(fn (Movie $m, int $i) => [
                 '@type' => 'ListItem',
                 'position' => ($movies->firstItem() ?? 1) + $i,
-                'url' => route('movies.show', $m),
+                'url' => lroute('movies.show', $m),
                 'name' => $m->title,
             ])->all(),
         ];
@@ -75,10 +88,11 @@ class MovieController extends Controller
                 '@context' => 'https://schema.org',
                 '@type' => 'WebSite',
                 'name' => $name,
-                'url' => route('movies.index'),
+                'url' => lroute('movies.index'),
+                'inLanguage' => app()->getLocale(),
                 'potentialAction' => [
                     '@type' => 'SearchAction',
-                    'target' => url('/').'/?q={search_term_string}',
+                    'target' => rtrim(lroute('movies.index'), '/').'/?q={search_term_string}',
                     'query-input' => 'required name=search_term_string',
                 ],
             ];
@@ -89,7 +103,7 @@ class MovieController extends Controller
 
     public function show(Request $request, Movie $movie, RatingService $ratings): View
     {
-        // Count one view per movie per session.
+        // Count one view per movie per session (shared by both languages).
         $key = 'viewed.'.$movie->id;
         if (! $request->session()->has($key)) {
             DB::table('movies')->where('id', $movie->id)->increment('views');
@@ -97,10 +111,16 @@ class MovieController extends Controller
             $request->session()->put($key, true);
         }
 
+        $players = $movie->players();
+        $server = (int) $request->query('server', 1);
+        if (! isset($players[$server])) {
+            $server = 1;
+        }
+
         $movie->load('categories');
         $related = $this->related($movie);
         $myScore = $ratings->scoreFor($movie, $request->cookie(self::VOTER_COOKIE));
-        $url = route('movies.show', $movie);
+        $url = lroute('movies.show', $movie);
         $name = config('app.name');
         $thumb = $movie->thumbnailSrc();
         $duration = $movie->duration_minutes ? 'PT'.$movie->duration_minutes.'M' : null;
@@ -113,6 +133,7 @@ class MovieController extends Controller
             'uploadDate' => $movie->created_at?->toIso8601String(),
             'embedUrl' => $movie->embed_url,
             'duration' => $duration,
+            'inLanguage' => app()->getLocale(),
             'interactionStatistic' => [
                 '@type' => 'InteractionCounter',
                 'interactionType' => ['@type' => 'WatchAction'],
@@ -140,9 +161,9 @@ class MovieController extends Controller
             'video' => $video,
         ]);
 
-        $crumbs = [['name' => 'Home', 'item' => route('movies.index')]];
+        $crumbs = [['name' => __('Home'), 'item' => lroute('movies.index')]];
         if ($first = $movie->categories->first()) {
-            $crumbs[] = ['name' => $first->name, 'item' => route('movies.category', $first)];
+            $crumbs[] = ['name' => $first->name, 'item' => lroute('movies.category', $first)];
         }
         $crumbs[] = ['name' => $movie->title, 'item' => $url];
 
@@ -154,10 +175,12 @@ class MovieController extends Controller
                 ->all(),
         ];
 
+        $title = $movie->title.($movie->release_year ? " ({$movie->release_year})" : '');
         $seo = [
-            'title' => $movie->title.($movie->release_year ? " ({$movie->release_year})" : '')." - Watch Online | {$name}",
+            'title' => __(':title - Watch Online | :site', ['title' => $title, 'site' => $name]),
             'description' => $movie->summary(),
             'canonical' => $url,
+            'alternates' => $this->alternates(fn ($l) => lroute('movies.show', $movie, $l)),
             'robots' => 'index, follow, max-image-preview:large',
             'type' => 'video.movie',
             'image' => $thumb,
@@ -165,11 +188,23 @@ class MovieController extends Controller
             'jsonld_site' => $breadcrumbs,
         ];
 
-        return view('movies.show', compact('movie', 'myScore', 'seo', 'related'));
+        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server'));
+    }
+
+    /** hreflang map: each locale's URL plus x-default (Indonesian). */
+    private function alternates(callable $urlIn): array
+    {
+        $map = [];
+        foreach (array_keys(site_locales()) as $locale) {
+            $map[$locale] = $urlIn($locale);
+        }
+        $map['x-default'] = $map['id'];
+
+        return $map;
     }
 
     /** Up to 8 movies sharing a category (best rated, then most viewed), topped up with the newest ones. */
-    private function related(Movie $movie, int $limit = 8)
+    private function related(Movie $movie, int $limit = 8): Collection
     {
         $ids = $movie->categories->pluck('id');
         $related = $ids->isEmpty() ? collect() : Movie::query()
@@ -192,6 +227,8 @@ class MovieController extends Controller
     {
         $data = $request->validate([
             'score' => ['required', 'integer', 'between:'.Movie::MIN_SCORE.','.Movie::MAX_SCORE],
+        ], [
+            'score.*' => __('Choose a rating from :min to :max stars.', ['min' => Movie::MIN_SCORE, 'max' => Movie::MAX_SCORE]),
         ]);
 
         $voter = $request->cookie(self::VOTER_COOKIE);
@@ -201,8 +238,38 @@ class MovieController extends Controller
 
         $ratings->rate($movie, $voter, (string) $request->ip(), (int) $data['score']);
 
-        return redirect()->route('movies.show', $movie)
-            ->with('status', 'Thanks for rating!')
+        return redirect()->to(lroute('movies.show', $movie))
+            ->with('status', __('Thanks for rating!'))
             ->withCookie(Cookie::forever(self::VOTER_COOKIE, $voter));
+    }
+
+    /** Visitor reports a broken player. One open report per IP, movie and server per 24 hours. */
+    public function report(Request $request, Movie $movie): RedirectResponse
+    {
+        $data = $request->validate([
+            'server' => ['required', 'integer', 'between:1,'.count($movie->players())],
+            'reason' => ['sometimes', 'in:'.implode(',', PlayerReport::REASONS)],
+        ]);
+
+        $ipHash = hash_hmac('sha256', (string) $request->ip(), (string) config('app.key'));
+        $server = (int) $data['server'];
+
+        $duplicate = PlayerReport::open()
+            ->where('movie_id', $movie->id)->where('server', $server)->where('ip_hash', $ipHash)
+            ->where('created_at', '>=', now()->subDay())
+            ->exists();
+
+        if (! $duplicate) {
+            PlayerReport::create([
+                'movie_id' => $movie->id,
+                'server' => $server,
+                'reason' => $data['reason'] ?? 'not_loading',
+                'ip_hash' => $ipHash,
+            ]);
+        }
+
+        $url = lroute('movies.show', $movie).($server > 1 ? '?server='.$server : '');
+
+        return redirect()->to($url)->with('status', __('Thanks! We will check the video soon. Try another server meanwhile.'));
     }
 }

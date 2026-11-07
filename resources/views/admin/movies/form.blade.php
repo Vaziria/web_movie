@@ -35,6 +35,13 @@
             <p class="mt-1 text-xs text-neutral-500">Paste the full &lt;iframe&gt; code or an https URL. vidara /v/ links are converted to /e/.</p>
         </div>
 
+        <div>
+            <label for="backup_embed_urls" class="{{ $label }}">Backup players (optional, max {{ \App\Models\Movie::MAX_BACKUPS }})</label>
+            <textarea id="backup_embed_urls" name="backup_embed_urls" rows="3" class="{{ $input }} py-2 font-mono text-sm"
+                      placeholder="One per line: iframe code or https URL">{{ implode("\n", (array) old('backup_embed_urls', $movie->backup_embed_urls ?? [])) }}</textarea>
+            <p class="mt-1 text-xs text-neutral-500">Shown to visitors as Server 2, Server 3, … when Server 1 does not work.</p>
+        </div>
+
         <fieldset class="rounded-lg border border-ink-800 p-4">
             <legend class="px-1 text-sm text-neutral-400">Thumbnail (16:9)</legend>
             @if ($src = $movie->thumbnailSrc())

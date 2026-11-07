@@ -18,6 +18,7 @@ class MovieResource extends JsonResource
             'synopsis' => $this->synopsis,
             'thumbnail_url' => $this->thumbnailSrc(),
             'embed_url' => $this->embed_url,
+            'backup_embed_urls' => $this->backup_embed_urls ?? [],
             'release_year' => $this->release_year,
             'duration_minutes' => $this->duration_minutes,
             'categories' => $this->whenLoaded('categories', fn () => $this->categories
