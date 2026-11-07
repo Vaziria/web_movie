@@ -78,7 +78,7 @@ class MovieController extends Controller
                 'url' => route('movies.index'),
                 'potentialAction' => [
                     '@type' => 'SearchAction',
-                    'target' => route('movies.index').'?q={search_term_string}',
+                    'target' => url('/').'/?q={search_term_string}',
                     'query-input' => 'required name=search_term_string',
                 ],
             ];

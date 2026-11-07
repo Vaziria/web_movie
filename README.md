@@ -4,6 +4,13 @@ Mobile-first movie site (Laravel 13 + Blade + Tailwind CSS + MySQL). Movies play
 player (iframe). Visitors can browse by category, search, sort by newest / top rated / most viewed, and rate 1-5
 without an account. Posts and categories are managed through an admin-only JSON API.
 
+## Documentation
+
+- [docs/API.md](docs/API.md): full API reference (fields, examples, responses, errors)
+- [docs/ADMIN.md](docs/ADMIN.md): how to post movies, manage categories, SEO tips
+- [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment and redeploy steps
+- [AGENTS.md](AGENTS.md): decisions, conventions and commands for coding agents
+
 ## Local development (Docker)
 
 ```sh

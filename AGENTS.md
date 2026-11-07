@@ -74,14 +74,20 @@ Record each decision as `- YYYY-MM-DD: <decision> (<why>)`.
 
 ## Deployment (Hostinger)
 
+Full runbook: `docs/DEPLOY.md` (build with `deploy/build-release.sh`, run once via `deploy/deploy-runner.php`).
+Docs for humans: `docs/API.md`, `docs/ADMIN.md`. Keep them in sync when the API changes.
+
 - Site `moviemov.id`, account `u878125972`, docroot `/home/u878125972/domains/moviemov.id/public_html`.
 - The whole app lives in `public_html`; `deploy/hostinger.htaccess` (copied to `public_html/.htaccess`) rewrites
   every request into `public/` and denies dotfiles, so `.env`, `vendor/` etc. are not served.
 - MySQL: db and user `u878125972_moviemov`, host `localhost`. The password lives only in the server `.env`; never
   store it in the repo, AGENTS.md or agent memory.
-- No SSH: deploy by building a release zip locally (Docker: `composer install --no-dev`, `npm run build`), uploading
-  it with the Hostinger file-upload API, and running unzip/artisan through a one-off Hostinger cron job (delete the
-  cron afterwards). PHP CLI on the server: `/opt/alt/php84/usr/bin/php`.
+- No SSH, and cron output only returns the last line: deploy by building a release zip locally
+  (`deploy/build-release.sh`), uploading it plus a randomly named copy of `deploy/deploy-runner.php` into
+  `public_html/public/` with the Hostinger file-upload API, and requesting the runner once over HTTPS. It extracts,
+  migrates, caches and deletes itself. PHP CLI on the server (for reference): `/opt/alt/php84/usr/bin/php`.
+- First deploy done 2026-11-07 (commit f8dd80c). Production admin credentials are in the gitignored
+  `storage/app/private/production-admin.txt` on the owner's PC.
 - Never overwrite `public_html/.env` or `public_html/public/uploads/` on redeploy.
 
 ## Commands
