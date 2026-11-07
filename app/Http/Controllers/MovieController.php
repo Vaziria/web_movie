@@ -98,6 +98,7 @@ class MovieController extends Controller
         }
 
         $movie->load('categories');
+        $related = $this->related($movie);
         $myScore = $ratings->scoreFor($movie, $request->cookie(self::VOTER_COOKIE));
         $url = route('movies.show', $movie);
         $name = config('app.name');
@@ -164,7 +165,27 @@ class MovieController extends Controller
             'jsonld_site' => $breadcrumbs,
         ];
 
-        return view('movies.show', compact('movie', 'myScore', 'seo'));
+        return view('movies.show', compact('movie', 'myScore', 'seo', 'related'));
+    }
+
+    /** Up to 8 movies sharing a category (best rated, then most viewed), topped up with the newest ones. */
+    private function related(Movie $movie, int $limit = 8)
+    {
+        $ids = $movie->categories->pluck('id');
+        $related = $ids->isEmpty() ? collect() : Movie::query()
+            ->whereKeyNot($movie->id)
+            ->whereHas('categories', fn ($q) => $q->whereIn('categories.id', $ids))
+            ->orderByDesc('rating_avg')->orderByDesc('views')->orderByDesc('id')
+            ->limit($limit)->get();
+
+        if ($related->count() < $limit) {
+            $related = $related->concat(Movie::query()
+                ->whereKeyNot($movie->id)
+                ->whereNotIn('id', $related->pluck('id'))
+                ->latest('id')->limit($limit - $related->count())->get());
+        }
+
+        return $related;
     }
 
     public function rate(Request $request, Movie $movie, RatingService $ratings): RedirectResponse

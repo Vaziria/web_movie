@@ -25,6 +25,12 @@ class MovieRequest extends FormRequest
         if (is_string($categories)) {
             $this->merge(['categories' => array_values(array_filter(array_map('trim', explode(',', $categories))))]);
         }
+
+        // A thumbnail file wins over a URL. In the admin form an empty URL box means "keep the current thumbnail"
+        // (removal is an explicit checkbox), so drop it instead of letting it clear the field.
+        if ($this->hasFile('thumbnail') || ($this->boolean('_admin_form') && blank($this->input('thumbnail_url')))) {
+            $this->request->remove('thumbnail_url');
+        }
     }
 
     public function rules(): array
@@ -36,13 +42,14 @@ class MovieRequest extends FormRequest
             'title' => [$required, 'string', 'max:255'],
             'slug' => ['sometimes', 'nullable', 'alpha_dash', 'max:255', Rule::unique('movies', 'slug')->ignore($movie?->id)],
             'embed_url' => [$required, 'string', 'max:2048', 'url:https'],
-            'thumbnail_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https', 'prohibits:thumbnail'],
+            'thumbnail_url' => ['sometimes', 'nullable', 'string', 'max:2048', 'url:http,https'],
             'thumbnail' => ['sometimes', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'synopsis' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'release_year' => ['sometimes', 'nullable', 'integer', 'between:1870,2100'],
             'duration_minutes' => ['sometimes', 'nullable', 'integer', 'between:1,1440'],
-            'categories' => ['sometimes', 'array', 'max:10'],
+            'categories' => ['sometimes', 'nullable', 'array', 'max:10'],
             'categories.*' => ['string', 'max:100'],
+            'remove_thumbnail' => ['sometimes', 'boolean'],
         ];
     }
 }

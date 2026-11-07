@@ -59,4 +59,28 @@
             </section>
         @endif
     </article>
+
+    @if ($related->isNotEmpty())
+        <section class="mt-10" aria-labelledby="related-heading">
+            <h2 id="related-heading" class="mb-4 text-lg font-semibold text-white">More like this</h2>
+            <ul class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
+                @foreach ($related as $r)
+                    <li>
+                        <a href="{{ route('movies.show', $r) }}" class="group block">
+                            <div class="aspect-video overflow-hidden rounded-lg bg-ink-800">
+                                @if ($src = $r->thumbnailSrc())
+                                    <img src="{{ $src }}" alt="{{ $r->title }}" width="480" height="270" loading="lazy" decoding="async" referrerpolicy="no-referrer"
+                                         class="size-full object-cover transition-opacity group-hover:opacity-80">
+                                @else
+                                    <div class="flex size-full items-center justify-center p-3 text-center text-xs text-neutral-500">{{ \Illuminate\Support\Str::limit($r->title, 40) }}</div>
+                                @endif
+                            </div>
+                            <h3 class="mt-2 line-clamp-2 text-sm font-medium leading-snug text-neutral-100 group-hover:text-white">{{ $r->title }}</h3>
+                            <p class="mt-0.5 text-xs text-neutral-500">@if ($r->release_year){{ $r->release_year }} · @endif★ {{ number_format($r->rating_avg, 1) }}</p>
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
 @endsection

@@ -45,6 +45,7 @@ class SeoController extends Controller
         $body = implode("\n", [
             'User-agent: *',
             'Disallow: /api/',
+            'Disallow: /admin',
             'Disallow: /*?q=',
             '',
             'Sitemap: '.route('sitemap'),

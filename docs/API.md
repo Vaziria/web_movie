@@ -107,7 +107,7 @@ Fields:
 | --- | --- | --- |
 | `title` | yes | string, max 255 |
 | `embed_url` | yes | `https` URL, max 2048. A full `<iframe src="...">` embed code is also accepted; its `src` is used. `https://vidara.to/v/<id>` is rewritten to `https://vidara.to/e/<id>`. |
-| `thumbnail_url` | no | `http`/`https` image URL. Cannot be combined with `thumbnail`. |
+| `thumbnail_url` | no | `http`/`https` image URL. Ignored when a `thumbnail` file is uploaded in the same request. |
 | `thumbnail` | no | image file (multipart only): jpg, jpeg, png, webp; max 2 MB. 16:9 recommended (e.g. 1280x720). |
 | `categories` | no | list of names, max 10, each max 100 chars. JSON array, or comma-separated string in multipart (`Action, Drama`). Names are matched by slug (`sci fi` = `Sci-Fi`); unknown names create a new category. |
 | `slug` | no | `a-z0-9-_`, unique. Generated from the title (`night-train`, then `night-train-2`, ...). |
@@ -152,7 +152,7 @@ Response: `201 Created` with `{ "data": Movie }`.
 Same fields as create, all optional. Only the fields you send change.
 
 - `categories`: when sent, replaces the whole list (`[]` removes all). When omitted, categories stay.
-- `thumbnail_url: null` removes the thumbnail.
+- `thumbnail_url: null` or `remove_thumbnail: true` removes the thumbnail.
 - Changing `slug` changes the page URL.
 
 ### `POST /movies/{slug}` (token)

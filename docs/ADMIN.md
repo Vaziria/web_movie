@@ -1,6 +1,25 @@
 # MovieMov admin guide
 
-Everything is managed through the API ([API.md](API.md)). There is no admin web panel yet.
+Two ways to manage the site:
+
+- **Admin panel** (browser, works on phones): https://moviemov.id/admin
+- **API** for scripts and bots: [API.md](API.md)
+
+## Admin panel
+
+1. Open https://moviemov.id/admin and log in with the admin email and password.
+2. **Movies**: list with search; **+ New movie** opens the form:
+   - *Embed code or player URL*: paste the full vidara `<iframe ...>` code (or an https URL).
+   - *Thumbnail*: upload a 16:9 image (jpg/png/webp, max 2 MB) or give an image URL. Leaving both empty keeps the
+     current one; tick *Remove current thumbnail* to delete it.
+   - *Categories*: comma separated (`Action, Drama`). New names are created; existing names are listed under the box.
+   - *URL slug*: leave empty to generate it from the title. Don't change it after the page is indexed.
+   - **Delete movie** is at the bottom of the edit page.
+3. **Categories**: create, rename, set the slug and description, or delete (movies are kept).
+4. **Log out** when you are done on a shared device.
+
+The panel is hidden from search engines (`noindex`, and `/admin` is disallowed in robots.txt). Login is limited to
+5 attempts per minute.
 
 ## Your admin account
 
