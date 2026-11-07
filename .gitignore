@@ -26,3 +26,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /public/uploads
+
+# Deploy secrets (Hostinger API token)
+/deploy/deploy.env

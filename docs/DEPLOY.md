@@ -22,19 +22,45 @@ and extracted the whole app there, which replaced `public/.htaccess` and broke t
 minutes. The current runner finds the real root, refuses to run artisan without a `.env`, and removes anything in
 `public/` that is not part of the release, keeping `uploads/`.)
 
-
 The plan has no SSH, and cron jobs only return the last line of output. So a release is a zip built locally plus a
 one-time PHP script (`deploy/deploy-runner.php`) that runs over HTTPS. The script:
 
 1. removes stray entries in `public/` that the release does not contain (keeps `uploads/`),
-1. extracts `release.zip` (keeps the existing `.env` and `public/uploads/`),
-2. clears old `bootstrap/cache/*.php`,
-3. runs `migrate --force`,
-4. creates the admin if `storage/app/private/admin-init.txt` exists (first deploy only), then deletes that file,
-5. runs `config:cache`, `route:cache`, `view:cache`,
-6. deletes itself.
+2. extracts `release.zip` (keeps the existing `.env` and `public/uploads/`),
+3. clears old `bootstrap/cache/*.php`,
+4. runs `migrate --force`,
+5. creates the admin if `storage/app/private/admin-init.txt` exists (first deploy only), then deletes that file,
+6. runs `config:cache`, `route:cache`, `view:cache`,
+7. deletes itself.
 
-## Redeploy steps
+## One-command redeploy (recommended)
+
+One-time setup:
+
+1. Install/keep running: **Git for Windows** (git-bash), **Docker Desktop**, **Python**.
+2. Create a Hostinger API token: hPanel → your account (top right) → **API** → new token.
+3. `copy deploy\deploy.env.example deploy\deploy.env` and paste the token after `HOSTINGER_API_TOKEN=`.
+   `deploy/deploy.env` is gitignored; never commit or share it.
+
+Every deploy:
+
+1. Commit your changes (only committed code is deployed; the script refuses a dirty tree).
+2. Run **`deploy.cmd`** (double-click it in the repo folder), or in git-bash: `bash deploy/deploy.sh`.
+
+What it does, stopping at the first problem:
+
+1. checks Docker is running and the git tree is clean,
+2. runs the tests and the formatter check (`--skip-tests` to skip),
+3. builds `release.zip` (`deploy/build-release.sh`) and checks it has no `.env` or uploads,
+4. gets an upload URL from the Hostinger API and uploads `release.zip` (to `public_html/`) and a one-time
+   `deploy_<random>.php` (to `public_html/public/`),
+5. runs the runner over HTTPS and requires `DEPLOY_OK`,
+6. smoke-tests the live site (home, sitemap, robots, API, admin login 200; `/.env` 403; `vendor/`, the zip and the
+   runner 404).
+
+Options: `deploy.cmd --dry-run` (steps 1-3 only, uploads nothing; safe to try anytime), `--skip-tests`.
+
+## Manual redeploy steps (fallback)
 
 1. Commit and push the changes; run the tests and lint first (see AGENTS.md).
 2. Build the release (git-bash, repo root; uses Docker):
@@ -70,5 +96,6 @@ Same as above, but `release.zip` also contained a production `.env` (generated `
 
 ## Rollback
 
-There is no automatic rollback. Check out the previous commit, rebuild with `build-release.sh`, and deploy it.
+There is no automatic rollback. Check out the previous commit (`git switch --detach <commit>`), run `deploy.cmd`,
+then `git switch main`.
 Database changes are not undone automatically.

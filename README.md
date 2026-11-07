@@ -8,7 +8,7 @@ without an account. Posts and categories are managed in the admin panel (`/admin
 
 - [docs/API.md](docs/API.md): full API reference (fields, examples, responses, errors)
 - [docs/ADMIN.md](docs/ADMIN.md): admin panel, posting movies, managing categories, SEO tips
-- [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment and redeploy steps
+- [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment; redeploy with `deploy.cmd` (one command)
 - [AGENTS.md](AGENTS.md): decisions, conventions and commands for coding agents
 
 ## Local development (Docker)
