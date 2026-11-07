@@ -59,7 +59,7 @@
 
         <p class="mt-2 text-sm text-neutral-400">
             @if ($movie->release_year)<span>{{ $movie->release_year }}</span> · @endif
-            @if ($movie->duration_minutes)<span>{{ __(':n min', ['n' => $movie->duration_minutes]) }}</span> · @endif
+            @if ($d = $movie->durationLabel(true))<span>{{ $d }}</span> · @endif
             <span>★ {{ nf($movie->rating_avg, 1) }}/{{ $max }}
                 ({{ trans_choice(':count rating|:count ratings', $movie->rating_count, ['count' => nf($movie->rating_count)]) }})</span>
             · <span>{{ trans_choice(':count view|:count views', $movie->views, ['count' => nf($movie->views)]) }}</span>
@@ -110,7 +110,7 @@
                                 @endif
                             </div>
                             <h3 class="mt-2 line-clamp-2 text-sm font-medium leading-snug text-neutral-100 group-hover:text-white">{{ $r->title }}</h3>
-                            <p class="mt-0.5 text-xs text-neutral-500">@if ($r->release_year){{ $r->release_year }} · @endif★ {{ nf($r->rating_avg, 1) }}</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">@if ($r->release_year){{ $r->release_year }} · @endif @if ($d = $r->durationLabel()){{ $d }} · @endif★ {{ nf($r->rating_avg, 1) }}</p>
                         </a>
                     </li>
                 @endforeach

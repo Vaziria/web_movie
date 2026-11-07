@@ -2,7 +2,7 @@
 
 Mobile-first movie site (Laravel 13 + Blade + Tailwind CSS + MySQL), in Indonesian (`/`) and English (`/en`).
 Movies play through an embedded external player (iframe) with optional backup servers, and visitors can report a
-broken video. Visitors can browse by category, search, sort by newest / top rated / most viewed, and rate 1-5
+broken video. Visitors can browse by category, search, sort by newest / top rated / most viewed / duration (either direction), and rate 1-5
 without an account. Posts and categories are managed in the admin panel (`/admin`) or through an admin-only JSON API.
 
 ## Documentation

@@ -19,7 +19,7 @@ class MovieController extends Controller
     public const VOTER_COOKIE = 'voter';
 
     /** Sort key => English label (translated in views with __()). */
-    public const SORT_LABELS = ['created' => 'Newest', 'rating' => 'Top rated', 'views' => 'Most viewed'];
+    public const SORT_LABELS = ['created' => 'Newest', 'rating' => 'Top rated', 'views' => 'Most viewed', 'duration' => 'Duration'];
 
     public function index(Request $request): View
     {
@@ -36,9 +36,11 @@ class MovieController extends Controller
         $q = Str::limit(trim((string) $request->query('q', '')), 100, '');
         $sort = array_key_exists((string) $request->query('sort'), Movie::SORTS) ? (string) $request->query('sort') : 'created';
         $page = max(1, (int) $request->query('page', 1));
+        $defaultDir = Movie::SORTS[$sort][1];
+        $dir = in_array($request->query('dir'), ['asc', 'desc'], true) ? (string) $request->query('dir') : $defaultDir;
 
         $movies = Movie::query()
-            ->browse($q, $sort, $category?->slug)
+            ->browse($q, $sort, $category?->slug, $dir)
             ->paginate(24)
             ->withQueryString();
 
@@ -98,7 +100,7 @@ class MovieController extends Controller
             ];
         }
 
-        return view('movies.index', compact('movies', 'categories', 'category', 'q', 'sort', 'heading', 'seo'));
+        return view('movies.index', compact('movies', 'categories', 'category', 'q', 'sort', 'dir', 'defaultDir', 'heading', 'seo'));
     }
 
     public function show(Request $request, Movie $movie, RatingService $ratings): View

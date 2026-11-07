@@ -2,6 +2,8 @@
 
 @section('content')
     @php
+        $sortLabels = App\Http\Controllers\MovieController::SORT_LABELS;
+        $sorts = App\Models\Movie::SORTS;
         $listUrl = fn (array $params) => ($category ? lroute('movies.category', $category) : lroute('movies.index'))
             .(($qs = http_build_query(array_filter($params))) ? '?'.$qs : '');
     @endphp
@@ -22,10 +24,20 @@
         </nav>
     @endif
 
-    <nav aria-label="{{ __('Sort') }}" class="mb-5 flex gap-5 border-b border-ink-800 text-sm">
-        @foreach (\App\Http\Controllers\MovieController::SORT_LABELS as $key => $label)
-            <a href="{{ $listUrl(['q' => $q, 'sort' => $key === 'created' ? null : $key]) }}" rel="nofollow"
-               @class(['-mb-px border-b-2 py-2.5', 'border-accent font-medium text-white' => $sort === $key, 'border-transparent text-neutral-400 hover:text-neutral-200' => $sort !== $key])>{{ __($label) }}</a>
+    {{-- Sort tabs scroll sideways on phones. Tapping the active tab flips the order (▼ high→low, ▲ low→high). --}}
+    <nav aria-label="{{ __('Sort') }}" class="-mx-4 mb-5 flex gap-5 overflow-x-auto border-b border-ink-800 px-4 text-sm [scrollbar-width:none] md:mx-0 md:px-0">
+        @foreach ($sortLabels as $key => $label)
+            @php
+                $active = $sort === $key;
+                $keyDefault = $sorts[$key][1];
+                $nextDir = $active ? ($dir === 'desc' ? 'asc' : 'desc') : $keyDefault;
+                $tabUrl = $listUrl(['q' => $q, 'sort' => $key === 'created' ? null : $key, 'dir' => $nextDir === $keyDefault ? null : $nextDir]);
+            @endphp
+            <a href="{{ $tabUrl }}" rel="nofollow"
+               @if ($active) aria-current="true" title="{{ $dir === 'desc' ? __('High to low, tap to reverse') : __('Low to high, tap to reverse') }}" @endif
+               @class(['-mb-px inline-flex shrink-0 items-center gap-1 whitespace-nowrap border-b-2 py-2.5', 'border-accent font-medium text-white' => $active, 'border-transparent text-neutral-400 hover:text-neutral-200' => ! $active])>
+                {{ __($label) }}@if ($active)<span aria-hidden="true" class="text-xs">{{ $dir === 'desc' ? '▼' : '▲' }}</span><span class="sr-only">({{ $dir === 'desc' ? __('high to low') : __('low to high') }})</span>@endif
+            </a>
         @endforeach
     </nav>
 
@@ -52,6 +64,7 @@
                         <h2 class="mt-2 line-clamp-2 text-sm font-medium leading-snug text-neutral-100 group-hover:text-white">{{ $movie->title }}</h2>
                         <p class="mt-0.5 text-xs text-neutral-500">
                             @if ($movie->release_year){{ $movie->release_year }} · @endif
+                            @if ($d = $movie->durationLabel()){{ $d }} · @endif
                             ★ {{ nf($movie->rating_avg, 1) }} · {{ trans_choice(':count view|:count views', $movie->views, ['count' => nf($movie->views)]) }}
                         </p>
                     </a>

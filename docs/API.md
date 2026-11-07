@@ -87,7 +87,8 @@ Revokes the token used for the request. Returns `{ "message": "Logged out." }`.
 | --- | --- | --- |
 | `q` | | search in title and synopsis, max 100 chars |
 | `category` | | category slug |
-| `sort` | `created` | `created` (newest), `rating` (highest), `views` (most viewed) |
+| `sort` | `created` | `created` (newest), `rating` (highest), `views` (most viewed), `duration` (longest) |
+| `dir` | per sort (`desc`) | `desc` or `asc` to reverse, e.g. `sort=duration&dir=asc` = shortest first. Movies with no value (e.g. no duration) are always listed last. |
 | `per_page` | `24` | 1-100 |
 | `page` | `1` | |
 
@@ -96,7 +97,7 @@ curl 'https://moviemov.id/api/movies?category=sci-fi&sort=rating&per_page=10' -H
 ```
 
 Response: `{ "data": [Movie, ...], "links": {...}, "meta": { "current_page", "last_page", "per_page", "total", ... } }`.
-An unknown `sort` value returns `422`.
+An unknown `sort` or `dir` value returns `422`.
 
 ### `GET /movies/{slug}` (public)
 
@@ -117,7 +118,7 @@ Fields:
 | `slug` | no | `a-z0-9-_`, unique. Generated from the title (`night-train`, then `night-train-2`, ...). |
 | `synopsis` | no | max 10000 chars. The first ~155 chars become the page's meta description. |
 | `release_year` | no | 1870-2100 |
-| `duration_minutes` | no | 1-1440 |
+| `duration_minutes` | no | 1-1440 (minutes). Shown as `1j 45m` / `1h 45m` on cards and used by `sort=duration`. |
 
 JSON:
 

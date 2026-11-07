@@ -20,12 +20,13 @@ class MovieController extends Controller
             'q' => ['sometimes', 'nullable', 'string', 'max:100'],
             'sort' => ['sometimes', 'nullable', 'in:'.implode(',', array_keys(Movie::SORTS))],
             'category' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'dir' => ['sometimes', 'nullable', 'in:asc,desc'],
             'per_page' => ['sometimes', 'integer', 'between:1,100'],
         ]);
 
         $movies = Movie::query()
             ->with('categories')
-            ->browse($request->string('q')->toString(), $request->string('sort')->toString(), $request->string('category')->toString())
+            ->browse($request->string('q')->toString(), $request->string('sort')->toString(), $request->string('category')->toString(), $request->string('dir')->toString() ?: null)
             ->paginate($request->integer('per_page', 24))
             ->withQueryString();
 

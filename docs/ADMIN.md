@@ -10,6 +10,8 @@ Two ways to manage the site:
 1. Open https://moviemov.id/admin and log in with the admin email and password.
 2. **Movies**: list with search; **+ New movie** opens the form:
    - *Embed code or player URL*: paste the full vidara `<iframe ...>` code (or an https URL).
+   - *Duration (minutes)*: e.g. `105`. Shown as "1j 45m" and used by the **Durasi** sort, so fill it in;
+     movies without it go last when sorting by duration.
    - *Backup players*: optional, one per line (iframe code or https URL, max 5). Visitors see buttons
      "Server 1, 2, 3 ..." under the player and can switch when one host is down.
    - *Thumbnail*: upload a 16:9 image (jpg/png/webp, max 2 MB) or give an image URL. Leaving both empty keeps the

@@ -21,6 +21,7 @@ class Movie extends Model
         'created' => ['created_at', 'desc'],
         'rating' => ['rating_avg', 'desc'],
         'views' => ['views', 'desc'],
+        'duration' => ['duration_minutes', 'desc'],
     ];
 
     public const MIN_SCORE = 1;
@@ -179,8 +180,11 @@ class Movie extends Model
         return $this->belongsToMany(Category::class)->orderBy('name');
     }
 
-    /** Apply search, category filter and sort. Unknown sort keys fall back to "created". */
-    public function scopeBrowse(Builder $query, ?string $search, ?string $sort, ?string $category = null): Builder
+    /**
+     * Apply search, category filter and sort. Unknown sort keys fall back to "created"; $direction ("asc"/"desc")
+     * overrides the sort's default. Movies without a value for the sort column (e.g. no duration) always go last.
+     */
+    public function scopeBrowse(Builder $query, ?string $search, ?string $sort, ?string $category = null, ?string $direction = null): Builder
     {
         if (filled($search)) {
             $term = '%'.addcslashes(trim($search), '%_\\').'%';
@@ -193,9 +197,34 @@ class Movie extends Model
             $query->whereHas('categories', fn (Builder $q) => $q->where('slug', $category));
         }
 
-        [$column, $direction] = self::SORTS[$sort] ?? self::SORTS['created'];
+        [$column, $default] = self::SORTS[$sort] ?? self::SORTS['created'];
+        $direction = in_array($direction, ['asc', 'desc'], true) ? $direction : $default;
 
-        return $query->orderBy($column, $direction)->orderByDesc('id');
+        return $query
+            ->orderByRaw($query->getGrammar()->wrap($column).' IS NULL')
+            ->orderBy($column, $direction)
+            ->orderBy('id', $direction);
+    }
+
+    /** "1h 45m" / "1j 45m" (short, cards) or "1 hour 45 minutes" / "1 jam 45 menit" (long). */
+    public function durationLabel(bool $long = false): ?string
+    {
+        $m = $this->duration_minutes;
+        if (! $m) {
+            return null;
+        }
+        [$h, $min] = [intdiv($m, 60), $m % 60];
+
+        if ($long) {
+            $parts = array_filter([
+                $h ? trans_choice(':count hour|:count hours', $h, ['count' => $h]) : null,
+                $min ? trans_choice(':count minute|:count minutes', $min, ['count' => $min]) : null,
+            ]);
+
+            return implode(' ', $parts);
+        }
+
+        return trim(($h ? $h.__('h').' ' : '').($min ? $min.__('m') : ''));
     }
 
     public function recalculateRating(): void
