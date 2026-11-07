@@ -8,13 +8,13 @@ use Illuminate\Support\Facades\Validator;
 
 class CreateAdmin extends Command
 {
-    protected $signature = 'app:create-admin {email} {--name=Admin} {--password= : Omit to be prompted}';
+    protected $signature = 'app:create-admin {email? : Defaults to admin@<APP_URL host>} {--name=Admin} {--password= : Omit to be prompted}';
 
     protected $description = 'Create or promote an admin user who can log in to the upload API';
 
     public function handle(): int
     {
-        $email = $this->argument('email');
+        $email = $this->argument('email') ?: 'admin@'.(parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'localhost');
         $password = $this->option('password') ?: $this->secret('Password (min 8 chars)');
 
         $v = Validator::make(compact('email', 'password'), [

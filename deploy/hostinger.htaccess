@@ -1,0 +1,12 @@
+# Shared hosting (Hostinger): the whole app lives in public_html, only public/ is served.
+# Copy this file to public_html/.htaccess on the server (the deploy script does this).
+Options -Indexes
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

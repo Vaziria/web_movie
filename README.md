@@ -41,7 +41,8 @@ curl -X POST https://moviemov.id/api/movies \
 Fields:
 
 - `title`: required, max 255
-- `embed_url`: required, `https` only. `vidara.to/v/<id>` links are rewritten to the player URL `vidara.to/e/<id>`.
+- `embed_url`: required, `https` only. You can also paste the full `<iframe src="...">` embed code; its `src` is used.
+  `vidara.to/v/<id>` links are rewritten to the player URL `vidara.to/e/<id>`.
 - `slug`: optional, auto-generated from the title
 - `synopsis`, `poster_url`, `release_year`, `duration_minutes`: optional
 

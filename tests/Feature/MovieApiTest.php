@@ -75,6 +75,21 @@ class MovieApiTest extends TestCase
         $this->postJson('/api/movies', $payload)->assertForbidden();
     }
 
+    public function test_iframe_embed_code_is_accepted(): void
+    {
+        Sanctum::actingAs($this->admin());
+
+        $this->postJson('/api/movies', [
+            'title' => 'Pasted Embed',
+            'embed_url' => '<iframe src="https://vidara.to/e/8SdwOuKAAk92t" width="640" height="360" frameborder="0" allowfullscreen></iframe>',
+        ])->assertCreated()->assertJsonPath('data.embed_url', 'https://vidara.to/e/8SdwOuKAAk92t');
+
+        $this->postJson('/api/movies', [
+            'title' => 'Bad Embed',
+            'embed_url' => '<iframe src="http://evil.example/x"></iframe>',
+        ])->assertStatus(422);
+    }
+
     public function test_embed_url_must_be_https(): void
     {
         Sanctum::actingAs($this->admin());
