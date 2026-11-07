@@ -15,18 +15,29 @@ through an admin-only JSON API.
 - [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment; redeploy with `deploy.cmd` (one command)
 - [AGENTS.md](AGENTS.md): decisions, conventions and commands for coding agents
 
-## Local development (Docker)
+## Local development
+
+Needs Docker Desktop, Git Bash and `make` (everything else runs in Docker). Run `make` in Git Bash, in the repo
+folder, to list every command.
 
 ```sh
-cp .env.example .env
-docker compose run --rm --no-deps app sh -c "composer install && php artisan key:generate"
-docker run --rm -v "$PWD:/app" -w /app node:22-alpine sh -c "npm install && npm run build"
-docker compose up -d
-docker compose exec app php artisan migrate
-docker compose exec app php artisan app:create-admin            # admin@localhost, prompts for a password
+make setup          # first run: .env, packages, CSS build, start, migrate
+make admin          # create your admin login (admin@localhost; asks for a password)
+make up             # start  -> http://localhost:8000  (admin: /admin, API docs: /docs/api)
+make down           # stop (data is kept)
+
+make test           # tests (make test FILTER=Draft for some of them)
+make check          # tests + code style + CSS build: what a deploy checks
+make fix            # fix code style
+make build          # rebuild the CSS after changing templates
+make docs           # regenerate docs/openapi.json after API changes
+
+make deploy-check   # full deploy rehearsal, uploads nothing
+make deploy         # deploy to moviemov.id (asks you to type the domain)
 ```
 
-Open http://localhost:8000. Tests: `docker compose run --rm --no-deps app php artisan test`.
+Other targets: `logs`, `shell`, `tinker`, `migrate`, `restart`, `ps`, `release`, `artisan CMD="route:list"`.
+Without make, the raw Docker commands are in [AGENTS.md](AGENTS.md#commands).
 
 ## API
 

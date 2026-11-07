@@ -1,6 +1,7 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
 
-@source '../../storage/framework/views/*.php';
+/* Only the templates are scanned, so words in other repo files (Makefile, docs/openapi.json, ...) never add CSS. */
+@source '../views';
 
 /*
  * Flat, minimal, mobile-first.

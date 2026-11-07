@@ -140,6 +140,9 @@ Docs for humans: `docs/API.md`, `docs/ADMIN.md`. Keep them in sync when the API 
 ## Commands
 
 All via Docker (`compose.yaml`: `app` = php:8.4-cli + composer + gd, `mysql` = mysql:8.4 on host port 33060).
+The `Makefile` wraps these (`make` lists targets; `make check` = test + lint + build; `make docs`; `make deploy-check`).
+It exports `MSYS_NO_PATHCONV=1` because plain Git Bash rewrites `-w /app` into a Windows path. Keep the raw
+commands below in sync when you change a target.
 
 - First run: `cp .env.example .env && docker compose run --rm --no-deps app sh -c "composer install && php artisan key:generate"`
 - Front-end deps/build: `docker run --rm -v "D:/wargasipil/web_movie:/app" -w /app node:22-alpine sh -c "npm install && npm run build"`
@@ -148,7 +151,8 @@ All via Docker (`compose.yaml`: `app` = php:8.4-cli + composer + gd, `mysql` = m
   `docker compose exec app php artisan migrate`; site at http://localhost:8000
 - Tests: `docker compose run --rm --no-deps app php artisan test` (SQLite in-memory; tests call `withoutVite()`)
 - Lint/format: `docker compose run --rm --no-deps app vendor/bin/pint --test` (drop `--test` to fix)
-- Build: the `npm run build` command above
+- Build: the `npm run build` command above. Tailwind scans only `resources/views` (`source(none)` +
+  `@source '../views'` in `resources/css/app.css`), so put every class in a Blade template.
 - API docs: `docker compose exec app php artisan scramble:export` (writes `docs/openapi.json`; commit it).
   `OpenApiSpecTest` fails when it is stale. Local viewer: http://localhost:8000/docs/api
 
