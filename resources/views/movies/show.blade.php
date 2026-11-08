@@ -11,12 +11,14 @@
         </p>
     @endif
     <article>
-        {{-- External player. Sandbox (blocks pop-up ads) is opt-in via EMBED_SANDBOX: many hosts refuse to play when sandboxed. --}}
+        {{-- External player. Sandbox (blocks pop-up ads) is opt-in via EMBED_SANDBOX: many hosts refuse to play when sandboxed.
+             Permissions use `*`: hosts redirect the player to rotating mirror domains (vidara.to -> as9u7bgh9.com), and a
+             bare `fullscreen` only covers the src domain, so the player's fullscreen button would silently do nothing. --}}
         <div class="-mx-4 -mt-4 aspect-video bg-black md:mx-0 md:mt-0 md:overflow-hidden md:rounded-lg">
             <iframe src="{{ $players[$server] }}"
                     title="{{ $movie->title }}"
                     @if (config('movies.embed_sandbox')) sandbox="allow-scripts allow-same-origin allow-presentation" @endif
-                    allow="fullscreen; encrypted-media; picture-in-picture"
+                    allow="fullscreen *; encrypted-media *; picture-in-picture *; screen-wake-lock *"
                     allowfullscreen
                     referrerpolicy="no-referrer"
                     class="size-full border-0"></iframe>
