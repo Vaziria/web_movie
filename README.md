@@ -12,7 +12,7 @@ through an admin-only JSON API.
 - [docs/API.md](docs/API.md): API guide with curl examples (posting movies, drafts, scheduling, errors)
 - [docs/openapi.json](docs/openapi.json): OpenAPI 3.1 reference of every endpoint, field and response, generated
   from the code (see "API reference" below)
-- [docs/ADMIN.md](docs/ADMIN.md): admin panel, posting movies, managing categories, SEO tips
+- [docs/ADMIN.md](docs/ADMIN.md): admin panel, posting movies, managing categories, forgot password, SEO tips
 - [docs/DEPLOY.md](docs/DEPLOY.md): Hostinger deployment; redeploy with `deploy.cmd` (one command)
 - [AGENTS.md](AGENTS.md): decisions, conventions and commands for coding agents
 

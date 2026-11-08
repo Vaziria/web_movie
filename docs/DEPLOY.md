@@ -93,6 +93,21 @@ Same as above, but `release.zip` also contained a production `.env` (generated `
 `storage/app/private/admin-init.txt` with a random admin password. Both files were uploaded to `public_html/`
 (before `.htaccess` existed). The placeholder `default.php` was removed.
 
+## Email (password reset links)
+
+The server sends mail with PHP's `mail()` (`MAIL_MAILER=phpmail`, `App\Mail\PhpMailTransport`): Hostinger disables
+`proc_open`, so Laravel's `sendmail` mailer cannot run there, and `mail()` needs no mailbox password. Server `.env`:
+
+```
+MAIL_MAILER=phpmail
+MAIL_FROM_ADDRESS="noreply@moviemov.id"
+MAIL_FROM_NAME="MovieMov"
+```
+
+Deploys keep the server `.env`, so this is set once. If emails land in spam or never arrive, create a mailbox in
+hPanel (Emails) and switch to SMTP (`MAIL_MAILER=smtp`, `MAIL_HOST=smtp.hostinger.com`, `MAIL_PORT=465`,
+`MAIL_SCHEME=smtps`, `MAIL_USERNAME`/`MAIL_PASSWORD` of that mailbox; never commit them).
+
 ## Useful hPanel settings
 
 - SSL: keep "Force HTTPS" on (http redirects to https).

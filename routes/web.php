@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Admin\AccountController as AdminAccount;
 use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\CategoryController as AdminCategories;
 use App\Http\Controllers\Admin\MovieController as AdminMovies;
+use App\Http\Controllers\Admin\PasswordResetController as AdminPasswordReset;
 use App\Http\Controllers\Admin\ReportController as AdminReports;
 use App\Http\Controllers\Admin\TagController as AdminTags;
 use App\Http\Controllers\MovieController;
@@ -35,6 +37,10 @@ Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
 Route::prefix('admin')->name('admin.')->middleware('locale:en')->group(function () {
     Route::get('/login', [AdminAuth::class, 'showLogin'])->name('login');
     Route::post('/login', [AdminAuth::class, 'login'])->middleware('throttle:5,1')->name('login.submit');
+    Route::get('/forgot-password', [AdminPasswordReset::class, 'request'])->name('password.request');
+    Route::post('/forgot-password', [AdminPasswordReset::class, 'email'])->middleware('throttle:5,1')->name('password.email');
+    Route::get('/reset-password/{token}', [AdminPasswordReset::class, 'edit'])->name('password.reset');
+    Route::post('/reset-password', [AdminPasswordReset::class, 'update'])->middleware('throttle:5,1')->name('password.update');
 
     Route::middleware('admin')->group(function () {
         Route::post('/logout', [AdminAuth::class, 'logout'])->name('logout');
@@ -44,5 +50,8 @@ Route::prefix('admin')->name('admin.')->middleware('locale:en')->group(function 
         Route::resource('tags', AdminTags::class)->except('show');
         Route::get('/reports', [AdminReports::class, 'index'])->name('reports.index');
         Route::post('/reports/{movie}/resolve', [AdminReports::class, 'resolve'])->name('reports.resolve');
+        Route::get('/account', [AdminAccount::class, 'edit'])->name('account');
+        Route::put('/account/password', [AdminAccount::class, 'updatePassword'])->middleware('throttle:10,1')->name('account.password');
+        Route::put('/account/email', [AdminAccount::class, 'updateEmail'])->middleware('throttle:10,1')->name('account.email');
     });
 });

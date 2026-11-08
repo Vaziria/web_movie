@@ -26,6 +26,7 @@
                     <span class="rounded-full bg-accent px-1.5 text-xs font-medium leading-5 text-white" aria-label="{{ $openReports }} movies with open reports">{{ $openReports }}</span>
                 @endif
             </a>
+            <a href="{{ route('admin.account') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.account'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.account')])>Account</a>
             <a href="{{ route('movies.index') }}" class="shrink-0 py-3 text-neutral-400 hover:text-white" target="_blank" rel="noopener">View site</a>
             <form method="post" action="{{ route('admin.logout') }}" class="ml-auto shrink-0">
                 @csrf

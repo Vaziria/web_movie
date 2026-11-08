@@ -25,5 +25,6 @@
             </label>
             <button type="submit" class="h-11 w-full rounded-lg bg-accent font-medium text-white hover:bg-accent-hover">Log in</button>
         </form>
+        <p class="mt-6 text-center text-sm"><a href="{{ route('admin.password.request') }}" class="inline-block py-2 text-neutral-400 hover:text-white">Forgot password?</a></p>
     </div>
 @endsection

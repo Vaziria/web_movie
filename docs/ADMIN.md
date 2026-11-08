@@ -32,18 +32,30 @@ Two ways to manage the site:
 4. **Categories**: create, rename, set the slug and description, or delete (movies are kept).
 5. **Tags**: most used first with their movie count. **Movies** shows the movies with that tag; **Edit** renames
    it, changes the slug, or deletes it (movies are kept).
-6. **Log out** when you are done on a shared device.
+6. **Account**: change your password or your login email (both ask for the current password).
+7. **Log out** when you are done on a shared device.
 
 The panel is hidden from search engines (`noindex`, and `/admin` is disallowed in robots.txt). Login is limited to
 5 attempts per minute.
 
 ## Your admin account
 
-- Login email: `admin@moviemov.id`
+- Login email: `admin@moviemov.id` until you change it. Use an inbox you actually read: password reset links go
+  there. Change it in **Account**, or on the server with `php artisan app:admin-email <current> <new>`.
 - Password: set at deploy time and saved on the owner's PC in
-  `D:/wargasipil/web_movie/storage/app/private/production-admin.txt` (never committed).
-- Change it, or create another admin, from the server with
-  `php artisan app:create-admin [email] --password=...` (see [DEPLOY.md](DEPLOY.md) for running commands there).
+  `D:/wargasipil/web_movie/storage/app/private/production-admin.txt` (never committed). Change it in **Account**.
+- Create another admin from the server with `php artisan app:create-admin [email] --password=...` (see
+  [DEPLOY.md](DEPLOY.md) for running commands there).
+
+### Forgot your password?
+
+1. On https://moviemov.id/admin/login tap **Forgot password?** and enter your admin email.
+2. Open the email "Reset your password" (check spam too) and tap the button. The link works once, for 60 minutes.
+3. Type a new password twice (at least 8 characters). You are logged in straight away.
+
+Only admin accounts get an email; the page shows the same message for any address, so it does not reveal who is an
+admin. It allows 5 requests per minute, and one email per account per minute. Existing API tokens keep working
+after a reset; revoke one with `POST /api/logout`.
 
 ## Get a token
 

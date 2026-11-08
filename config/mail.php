@@ -65,6 +65,11 @@ return [
             'transport' => 'resend',
         ],
 
+        // PHP mail(): for hosts that disable proc_open (Hostinger shared hosting). See App\Mail\PhpMailTransport.
+        'phpmail' => [
+            'transport' => 'phpmail',
+        ],
+
         'sendmail' => [
             'transport' => 'sendmail',
             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
