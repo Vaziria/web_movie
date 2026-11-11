@@ -46,7 +46,7 @@
     <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
     <link rel="preconnect" href="https://vidara.to">
 
-    @foreach (['jsonld', 'jsonld_site'] as $k)
+    @foreach (['jsonld', 'jsonld_video', 'jsonld_site'] as $k)
         @if (! empty($seo[$k]))
             <script type="application/ld+json">{!! json_encode($seo[$k], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>
         @endif

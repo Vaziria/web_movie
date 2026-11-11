@@ -54,11 +54,40 @@ class SeoTest extends TestCase
         $this->assertStringContainsString('<meta property="og:image" content="https://img.example.com/n.jpg">', $html);
 
         preg_match_all('~<script type="application/ld\+json">(.+?)</script>~s', $html, $m);
-        $types = collect($m[1])->map(fn ($j) => json_decode($j, true)['@type'] ?? null)->all();
-        $this->assertSame(['Movie', 'BreadcrumbList'], $types);
-        $schema = json_decode($m[1][0], true);
-        $this->assertSame('VideoObject', $schema['video']['@type']);
-        $this->assertSame($movie->embed_url, $schema['video']['embedUrl']);
+        $blocks = collect($m[1])->map(fn ($j) => json_decode($j, true));
+        $this->assertSame(['Movie', 'VideoObject', 'BreadcrumbList'], $blocks->pluck('@type')->all());
+
+        // The video is its own top-level item (Google video results), linked from the Movie by @id.
+        [$schema, $video] = [$blocks[0], $blocks[1]];
+        $this->assertSame(['@id' => url('/movies/night-train').'#video'], $schema['video']);
+        $this->assertSame('https://schema.org', $video['@context']);
+        $this->assertSame(url('/movies/night-train').'#video', $video['@id']);
+        $this->assertSame('Night Train', $video['name']);
+        $this->assertSame('A long ride.', $video['description']);
+        $this->assertSame('https://img.example.com/n.jpg', $video['thumbnailUrl']);
+        $this->assertSame($movie->embed_url, $video['embedUrl']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/', $video['uploadDate']);
+    }
+
+    public function test_video_schema_always_has_googles_required_fields(): void
+    {
+        // No thumbnail, no synopsis, no duration: name, description, thumbnailUrl and uploadDate must still be set.
+        $movie = Movie::factory()->create(['title' => 'Bare Film', 'synopsis' => null, 'thumbnail_url' => null, 'duration_minutes' => null]);
+
+        preg_match_all('~<script type="application/ld\+json">(.+?)</script>~s', $this->get('/movies/'.$movie->slug)->getContent(), $m);
+        $video = collect($m[1])->map(fn ($j) => json_decode($j, true))->firstWhere('@type', 'VideoObject');
+
+        $this->assertSame('Bare Film', $video['name']);
+        $this->assertSame('Nonton Bare Film online di '.config('app.name').'.', $video['description']);
+        $this->assertSame(asset('og-default.png'), $video['thumbnailUrl']);
+        $this->assertNotEmpty($video['uploadDate']);
+        $this->assertArrayNotHasKey('duration', $video);
+
+        // English page: same video, English description.
+        preg_match_all('~<script type="application/ld\+json">(.+?)</script>~s', $this->get('/en/movies/'.$movie->slug)->getContent(), $m);
+        $en = collect($m[1])->map(fn ($j) => json_decode($j, true))->firstWhere('@type', 'VideoObject');
+        $this->assertSame(url('/en/movies/'.$movie->slug).'#video', $en['@id']);
+        $this->assertSame('en', $en['inLanguage']);
     }
 
     public function test_search_pages_are_noindex_and_sorted_lists_canonicalise(): void

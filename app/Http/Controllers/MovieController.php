@@ -250,11 +250,17 @@ class MovieController extends Controller
         $thumb = $movie->thumbnailSrc();
         $duration = $movie->duration_minutes ? 'PT'.$movie->duration_minutes.'M' : null;
 
+        // Google video results: a top-level VideoObject (not only nested in Movie) with the required name,
+        // thumbnailUrl and uploadDate always present; without a thumbnail Google drops the video, so fall back to
+        // the site's share image.
+        $videoId = $url.'#video';
         $video = array_filter([
+            '@context' => 'https://schema.org',
             '@type' => 'VideoObject',
+            '@id' => $videoId,
             'name' => $movie->title,
             'description' => $movie->summary(500),
-            'thumbnailUrl' => $thumb,
+            'thumbnailUrl' => $thumb ?: asset('og-default.png'),
             'uploadDate' => ($movie->published_at ?? $movie->created_at)?->toIso8601String(),
             'embedUrl' => $movie->embed_url,
             'duration' => $duration,
@@ -283,7 +289,7 @@ class MovieController extends Controller
                 'bestRating' => Movie::MAX_SCORE,
                 'worstRating' => Movie::MIN_SCORE,
             ] : null,
-            'video' => $video,
+            'video' => ['@id' => $videoId],
         ]);
 
         $crumbs = [['name' => __('Home'), 'item' => lroute('movies.index')]];
@@ -310,6 +316,7 @@ class MovieController extends Controller
             'type' => 'video.movie',
             'image' => $thumb,
             'jsonld' => $schema,
+            'jsonld_video' => $video,
             'jsonld_site' => $breadcrumbs,
         ];
 
