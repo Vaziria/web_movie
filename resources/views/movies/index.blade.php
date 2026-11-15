@@ -61,6 +61,11 @@
         @include('partials.movie-row', $section + ['key' => $key, 'first' => $loop->first])
     @endforeach
 
+    {{-- Home page only: invite to new-movie notifications (hidden once subscribed). --}}
+    @if (! $category && ! $tagSlugs && $q === '' && $movies->currentPage() === 1)
+        @include('partials.push-button', ['variant' => 'card'])
+    @endif
+
     @if ($sections)
         <h2 class="mb-2 text-lg font-semibold text-white">{{ $heading }}</h2>
     @endif

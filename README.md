@@ -5,7 +5,8 @@ Movies play through an embedded external player (iframe) with optional backup se
 broken video. Visitors can browse by category and by tags (several combined), search, sort by newest / trending /
 rating / most viewed / duration (either direction), and rate 1-5 without an account. Posts (publish now, draft or
 scheduled), categories and tags are managed in the admin panel (`/admin`) or
-through an admin-only JSON API.
+through an admin-only JSON API. Visitors can turn on browser push notifications for new movies (our own Web Push,
+no third-party service).
 
 ## Documentation
 

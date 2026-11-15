@@ -43,7 +43,7 @@ class Movie extends Model
 
     protected $fillable = [
         'title', 'slug', 'synopsis', 'thumbnail_url', 'embed_url', 'backup_embed_urls',
-        'release_year', 'duration_minutes', 'published_at',
+        'release_year', 'duration_minutes', 'published_at', 'push_notify',
     ];
 
     protected $hidden = ['user_id'];
@@ -58,6 +58,8 @@ class Movie extends Model
             'duration_minutes' => 'integer',
             'backup_embed_urls' => 'array',
             'published_at' => 'datetime',
+            'push_notify' => 'boolean',
+            'push_notified_at' => 'datetime',
         ];
     }
 

@@ -172,6 +172,13 @@ class MovieRequest extends FormRequest
              */
             'status' => ['sometimes', 'in:draft,published,scheduled'],
             /**
+             * Send a push notification to subscribers when this movie goes live (now, or at its scheduled time).
+             * Default `true` for new movies. Each movie is announced at most once.
+             *
+             * @example true
+             */
+            'notify_subscribers' => ['sometimes', 'boolean'],
+            /**
              * Publish time. Required for `scheduled` (must be in the future); for `published` it must not be in
              * the future. **Without an offset it is read as WIB** (`Asia/Jakarta`): `2026-11-08 20:00` =
              * 13:00 UTC. With an offset (`+07:00`, `Z`) it is used as given. Sending `null` without `status`

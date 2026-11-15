@@ -66,5 +66,13 @@
     "Tags": "Tag",
     "Movies tagged :names": "Film dengan tag :names",
     "Remove tag :name": "Hapus tag :name",
-    "Clear tags": "Hapus semua tag"
+    "Clear tags": "Hapus semua tag",
+    "Get notified when a new movie is added.": "Dapat kabar saat ada film baru.",
+    "Turn on notifications": "Aktifkan notifikasi",
+    "Turn off notifications": "Matikan notifikasi",
+    "Notifications are blocked. Allow them in your browser settings.": "Notifikasi diblokir. Izinkan di pengaturan browser.",
+    "On iPhone: tap Share, then \"Add to Home Screen\", and open MovieMov from there to turn on notifications.": "Di iPhone: ketuk Bagikan, lalu \"Tambahkan ke Layar Utama\", dan buka MovieMov dari sana untuk mengaktifkan notifikasi.",
+    "Something went wrong. Try again.": "Gagal, coba lagi.",
+    "New movie: :title": "Film baru: :title",
+    ":count new movies on :site": ":count film baru di :site"
 }

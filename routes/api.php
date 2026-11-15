@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\MovieController;
+use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TagController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/tags/{tag}', [TagController::class, 'update'])->name('api.tags.update');
     Route::put('/tags/{tag}', [TagController::class, 'update'])->name('api.tags.update.put');
     Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('api.tags.destroy');
+
+    Route::get('/push', [PushController::class, 'index'])->name('api.push.index');
+    Route::post('/push/messages', [PushController::class, 'store'])->middleware('throttle:10,1')->name('api.push.store');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('api.reports.index');
     Route::post('/reports/{movie}/resolve', [ReportController::class, 'resolve'])->name('api.reports.resolve');

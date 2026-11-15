@@ -135,6 +135,7 @@ Fields:
 | `release_year` | no | 1870-2100 |
 | `duration_minutes` | no | 1-1440 (minutes). Shown as `1j 45m` / `1h 45m` on cards and used by `sort=duration`. |
 | `status` | no | `published` (default for new movies), `draft` or `scheduled`. On update, leaving it out keeps the current status. `published` on a movie that is already live keeps its original date. |
+| `notify_subscribers` | no | boolean, default `true` for new movies: send a push notification to subscribers when the movie goes live (now, or at its scheduled time). Each movie is announced at most once. |
 | `published_at` | for `scheduled` | date-time. Must be in the future for `scheduled` and not in the future for `published`. Without an offset it is read as **WIB** (`Asia/Jakarta`): `2026-11-08 20:00` = 13:00 UTC. With an offset (`2026-11-08T20:00:00+07:00`, `...Z`) it is used as given. Returned in UTC. Sending `published_at: null` without `status` makes the movie a draft. |
 
 JSON:
@@ -326,6 +327,47 @@ Reasons: `not_loading`, `wrong_video`, `bad_quality`, `other`.
 ### `POST /reports/{movie_slug}/resolve`
 
 Marks every open report of that movie as fixed: `{ "resolved": 3 }`.
+
+## Push notifications (token)
+
+Visitors who tapped "Aktifkan notifikasi" get browser notifications. New movies are announced automatically when
+they go live (unless `notify_subscribers` was `false`); several movies going live in the same minute become one
+notification. A job on the server sends everything once a minute.
+
+### `GET /push`
+
+```json
+{
+  "enabled": true,
+  "subscribers": 152,
+  "last_run_at": "2026-11-15T09:02:35+00:00",
+  "messages": [
+    { "id": 7, "kind": "movie", "label": "New movie: Night Train", "status": "sent",
+      "sent": 150, "failed": 0, "expired": 2, "created_at": "...", "sent_at": "..." }
+  ]
+}
+```
+
+`enabled` is false until the server has its keys. `last_run_at` older than a few minutes means the cron job is not
+running. `kind`: `movie`, `movies` (several at once) or `custom`. `expired`: browsers that unsubscribed (removed).
+
+### `POST /push/messages`
+
+Send a custom notification to every subscriber, e.g. a weekly round-up.
+
+| Field | Required | Rules |
+| --- | --- | --- |
+| `title` | yes | max 100 |
+| `body` | no | max 200 |
+| `url` | no | page that opens on tap: a path on this site (`/category/drama`) or a full URL on this site. Default `/`. |
+
+```sh
+curl -X POST https://moviemov.id/api/push/messages \
+  -H 'Accept: application/json' -H 'Content-Type: application/json' -H "Authorization: Bearer ***" \
+  -d '{"title":"Film baru minggu ini","body":"5 film baru sudah bisa ditonton.","url":"/"}'
+```
+
+`201` with the queued message; it goes out within a minute. `409` when push is not set up on the server.
 
 ## Errors
 

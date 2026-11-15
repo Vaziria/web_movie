@@ -5,9 +5,11 @@ use App\Http\Controllers\Admin\AuthController as AdminAuth;
 use App\Http\Controllers\Admin\CategoryController as AdminCategories;
 use App\Http\Controllers\Admin\MovieController as AdminMovies;
 use App\Http\Controllers\Admin\PasswordResetController as AdminPasswordReset;
+use App\Http\Controllers\Admin\PushController as AdminPush;
 use App\Http\Controllers\Admin\ReportController as AdminReports;
 use App\Http\Controllers\Admin\TagController as AdminTags;
 use App\Http\Controllers\MovieController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\SeoController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,10 @@ $public = function () {
 Route::middleware('locale:id')->group($public);
 Route::prefix('en')->name('en.')->middleware('locale:en')->group($public);
 
+// Browser push subscriptions (resources/js/push.js). Same URL for both languages; the body carries the locale.
+Route::post('/push/subscribe', [PushSubscriptionController::class, 'store'])->middleware('throttle:10,1')->name('push.subscribe');
+Route::post('/push/unsubscribe', [PushSubscriptionController::class, 'destroy'])->middleware('throttle:10,1')->name('push.unsubscribe');
+
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
 Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
 
@@ -50,6 +56,8 @@ Route::prefix('admin')->name('admin.')->middleware('locale:en')->group(function 
         Route::resource('tags', AdminTags::class)->except('show');
         Route::get('/reports', [AdminReports::class, 'index'])->name('reports.index');
         Route::post('/reports/{movie}/resolve', [AdminReports::class, 'resolve'])->name('reports.resolve');
+        Route::get('/push', [AdminPush::class, 'index'])->name('push.index');
+        Route::post('/push', [AdminPush::class, 'store'])->middleware('throttle:10,1')->name('push.store');
         Route::get('/account', [AdminAccount::class, 'edit'])->name('account');
         Route::put('/account/password', [AdminAccount::class, 'updatePassword'])->middleware('throttle:10,1')->name('account.password');
         Route::put('/account/email', [AdminAccount::class, 'updateEmail'])->middleware('throttle:10,1')->name('account.email');

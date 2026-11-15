@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Mail\PhpMailTransport;
+use App\Services\Push\PushTransport;
+use App\Services\Push\WebPushTransport;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
@@ -15,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(PushTransport::class, WebPushTransport::class);
     }
 
     /**

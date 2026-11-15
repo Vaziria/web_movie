@@ -108,6 +108,21 @@ Deploys keep the server `.env`, so this is set once. If emails land in spam or n
 hPanel (Emails) and switch to SMTP (`MAIL_MAILER=smtp`, `MAIL_HOST=smtp.hostinger.com`, `MAIL_PORT=465`,
 `MAIL_SCHEME=smtps`, `MAIL_USERNAME`/`MAIL_PASSWORD` of that mailbox; never commit them).
 
+## Push notifications (keys + cron)
+
+Set up once on the server:
+
+1. **Keys**: `php artisan app:push-keys` writes `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` to `.env` (it prints only the
+   public key and never overwrites existing keys), then `php artisan config:cache`. Changing the keys later
+   (`--force`) loses every subscriber. Without keys the feature is off: no button, nothing sent.
+2. **Cron job** (hPanel → Advanced → Cron Jobs, every minute):
+   `/opt/alt/php84/usr/bin/php /home/u878125972/domains/moviemov.id/public_html/artisan schedule:run`
+   It runs `app:push-send`, which announces movies that went live and sends queued messages. The admin **Push**
+   page shows when it last ran.
+
+Sending uses `minishlink/web-push` over plain HTTPS (curl). GMP/BCMath are not needed: without them the library only
+logs a notice (the transport passes Laravel's logger; without a logger that notice became an exception).
+
 ## Useful hPanel settings
 
 - SSL: keep "Force HTTPS" on (http redirects to https).

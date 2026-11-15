@@ -39,8 +39,11 @@ class MovieWriter
     /** Validated movie columns, with an uploaded thumbnail file turned into its public path. */
     private function attributes(MovieRequest $request, ?Movie $movie): array
     {
-        $data = collect($request->validated())->except(['thumbnail', 'categories', 'tags', 'remove_thumbnail', 'status', 'published_at'])->all();
+        $data = collect($request->validated())->except(['thumbnail', 'categories', 'tags', 'remove_thumbnail', 'status', 'published_at', 'notify_subscribers'])->all();
         $data += $this->publishing($request, $movie);
+        if (array_key_exists('notify_subscribers', $request->validated())) {
+            $data['push_notify'] = $request->boolean('notify_subscribers');
+        }
 
         if ($request->file('thumbnail') instanceof UploadedFile) {
             $data['thumbnail_url'] = $this->storeThumbnail($request->file('thumbnail'));

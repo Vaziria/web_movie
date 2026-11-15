@@ -150,6 +150,31 @@ are in the sitemap. The admin panel is in English.
 - **Don't change slugs** after a page is indexed; the old URL will 404.
 - Submit `https://moviemov.id/sitemap.xml` once in Google Search Console. It updates itself.
 
+## Push notifications
+
+Visitors can get a browser notification when a new movie is added:
+
+- **Where they turn it on:** a card on the home page ("Dapat kabar saat ada film baru" → **Aktifkan notifikasi**)
+  and a button in the footer of every page. The browser asks for permission once. The same button turns it off.
+- **Android (Chrome, Samsung Internet), desktop Chrome, Edge, Firefox:** works straight away.
+- **iPhone/iPad:** only after the visitor adds MovieMov to the Home Screen (Share → "Tambahkan ke Layar Utama") and
+  opens it from there (iOS 16.4+). The site shows this hint on iPhone.
+
+What gets sent:
+
+- **New movies, automatically**: when a movie goes live (Publish now, or its scheduled time arrives) subscribers get
+  "Film baru: <judul>" with the thumbnail; tapping it opens the movie. English visitors get it in English. Several
+  movies going live in the same minute become one notification ("3 film baru di MovieMov").
+- To skip one, untick **🔔 Notify push subscribers when it goes live** in the movie's Publish box (API:
+  `"notify_subscribers": false`). Each movie is announced at most once, and never more than a day after it went
+  live. Movies that were already live when this feature arrived are never announced.
+- **Push** page in the admin panel: number of subscribers, whether the sender is running ("Sender ran 1 minute ago";
+  if not, the server cron job is missing), the latest notifications with how many were delivered, and a form to
+  send a **custom notification** (title, message, link to a page on the site).
+
+Tips: one notification a day at most, or people turn them off. Test on your own phone first: turn notifications
+on, then publish a movie or send a custom message.
+
 ## Content rules
 
 Only post videos you have the rights to share. The site embeds the player; the video host serves the file.

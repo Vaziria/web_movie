@@ -25,6 +25,11 @@
         <link rel="alternate" hreflang="{{ $hreflang }}" href="{{ $href }}">
     @endforeach
     <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    @if ($pushOn = \App\Services\Push\PushDispatcher::enabled())
+        <meta name="vapid-key" content="{{ config('webpush.public_key') }}">
+    @endif
 
     <meta property="og:site_name" content="{{ config('app.name') }}">
     <meta property="og:type" content="{{ $seo['type'] }}">
@@ -52,7 +57,7 @@
         @endif
     @endforeach
 
-    @vite('resources/css/app.css')
+    @vite($pushOn ? ['resources/css/app.css', 'resources/js/push.js'] : ['resources/css/app.css'])
 </head>
 <body class="min-h-dvh bg-ink-950 font-sans text-neutral-200 antialiased">
 <header class="sticky top-0 z-20 border-b border-ink-800 bg-ink-950/95 backdrop-blur">
@@ -95,6 +100,7 @@
 </main>
 
 <footer class="border-t border-ink-800">
+    <div class="mx-auto max-w-6xl px-4 pt-6 empty:hidden">@include('partials.push-button', ['variant' => 'footer'])</div>
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 text-xs text-neutral-500">
         <span>&copy; {{ date('Y') }} {{ config('app.name') }}</span>
         <span class="flex gap-3">

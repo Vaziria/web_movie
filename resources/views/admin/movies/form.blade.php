@@ -127,6 +127,15 @@
                 <p class="mt-1 text-xs text-neutral-500">{{ config('movies.admin_timezone_label') }} time ({{ $tz }}). Only used with "Schedule".</p>
                 @error('published_at')<p class="mt-1 text-sm text-red-400">{{ $message }}</p>@enderror
             </div>
+            @if ($editing && $movie->push_notified_at)
+                <p class="mt-4 text-sm text-neutral-500">🔔 Push: {{ $movie->push_notify ? 'subscribers were notified' : 'went live without a notification' }} ({{ $movie->push_notified_at->timezone($tz)->format('j M Y H:i') }} {{ config('movies.admin_timezone_label') }}).</p>
+            @else
+                <input type="hidden" name="notify_subscribers" value="0">
+                <label class="{{ $radio }} mt-2">
+                    <input type="checkbox" name="notify_subscribers" value="1" @checked(old('notify_subscribers', $movie->push_notify ?? true)) class="size-4 accent-accent">
+                    <span>🔔 Notify push subscribers when it goes live</span>
+                </label>
+            @endif
         </fieldset>
 
         <div class="flex gap-3 pt-2">
