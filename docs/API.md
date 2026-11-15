@@ -369,6 +369,38 @@ curl -X POST https://moviemov.id/api/push/messages \
 
 `201` with the queued message; it goes out within a minute. `409` when push is not set up on the server.
 
+## Users & statistics (token)
+
+Visitor accounts and active-user numbers, read-only. Blocking, deleting and reset links are in the admin panel.
+
+### `GET /users`
+
+Newest first, 50 per page. `?q=` searches name and email, `?page=2`.
+
+```json
+{
+  "data": [
+    { "id": 12, "name": "Siti", "email": "siti@gmail.com", "google": true, "is_admin": false, "blocked": false,
+      "watches_count": 7, "created_at": "2026-11-15T10:00:00+00:00", "last_active_at": "2026-11-15T12:30:00+00:00" }
+  ],
+  "meta": { "current_page": 1, "last_page": 1, "total": 1 }
+}
+```
+
+### `GET /stats`
+
+```json
+{
+  "totals": { "users_total": 40, "users_blocked": 0, "google_users": 31, "signups_today": 3,
+              "active_today_users": 12, "active_today_guests": 210, "active_month_users": 35, "active_month_guests": 2400 },
+  "daily":   [ { "day": "2026-11-15", "users": 12, "guests": 210, "signups": 3 } ],
+  "monthly": [ { "month": "2026-11", "users": 35, "guests": 2400 } ]
+}
+```
+
+`daily` = the last 30 days, `monthly` = the last 12 months (distinct visitors), oldest first. Days are WIB. Guests
+are counted per browser; crawlers are not counted.
+
 ## Errors
 
 | Status | Meaning | Body |

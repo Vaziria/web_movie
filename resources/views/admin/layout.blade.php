@@ -17,6 +17,8 @@
                 <span class="font-semibold text-white">Admin</span>
             </a>
             <a href="{{ route('admin.movies.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.movies.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.movies.*')])>Movies</a>
+            <a href="{{ route('admin.users.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.users.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.users.*')])>Users</a>
+            <a href="{{ route('admin.stats') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.stats'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.stats')])>Stats</a>
             <a href="{{ route('admin.categories.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.categories.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.categories.*')])>Categories</a>
             <a href="{{ route('admin.tags.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.tags.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.tags.*')])>Tags</a>
             @php $openReports = \App\Models\PlayerReport::openMovieCount(); @endphp
@@ -27,6 +29,7 @@
                 @endif
             </a>
             <a href="{{ route('admin.push.index') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.push.*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.push.*')])>Push</a>
+            <a href="{{ route('admin.settings') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.settings*'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.settings*')])>Settings</a>
             <a href="{{ route('admin.account') }}" @class(['shrink-0 py-3', 'text-white' => request()->routeIs('admin.account'), 'text-neutral-400 hover:text-white' => ! request()->routeIs('admin.account')])>Account</a>
             <a href="{{ route('movies.index') }}" class="shrink-0 py-3 text-neutral-400 hover:text-white" target="_blank" rel="noopener">View site</a>
             <form method="post" action="{{ route('admin.logout') }}" class="ml-auto shrink-0">

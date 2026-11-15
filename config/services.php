@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    // Google login (Socialite). The client ID may come from .env; the secret is entered in Admin → Settings
+    // (stored encrypted), and both are applied at runtime by App\Http\Controllers\Auth\GoogleController.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => null,
+        'redirect' => '/auth/google/callback',
+    ],
+
 ];

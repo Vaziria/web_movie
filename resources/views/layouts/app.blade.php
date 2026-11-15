@@ -67,9 +67,12 @@
                 <img src="{{ asset('favicon.svg') }}" alt="" width="28" height="28" class="size-7">
                 <span class="text-lg font-semibold tracking-tight text-white">{{ config('app.name') }}</span>
             </a>
-            <nav aria-label="{{ __('Language') }}" class="flex items-center gap-1 text-xs md:hidden">
-                @include('partials.language-switch')
-            </nav>
+            <div class="flex items-center gap-2 md:hidden">
+                <nav aria-label="{{ __('Language') }}" class="flex items-center gap-1 text-xs">
+                    @include('partials.language-switch')
+                </nav>
+                @include('partials.account-link')
+            </div>
         </div>
         <div class="flex w-full items-center gap-3 md:w-auto">
             @php
@@ -88,6 +91,7 @@
             <nav aria-label="{{ __('Language') }}" class="hidden items-center gap-1 text-xs md:flex">
                 @include('partials.language-switch')
             </nav>
+            <div class="hidden md:block">@include('partials.account-link')</div>
         </div>
     </div>
 </header>
@@ -102,7 +106,10 @@
 <footer class="border-t border-ink-800">
     <div class="mx-auto max-w-6xl px-4 pt-6 empty:hidden">@include('partials.push-button', ['variant' => 'footer'])</div>
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-6 text-xs text-neutral-500">
-        <span>&copy; {{ date('Y') }} {{ config('app.name') }}</span>
+        <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>&copy; {{ date('Y') }} {{ config('app.name') }}</span>
+            <a href="{{ lroute('pages.privacy') }}" class="py-2 hover:text-neutral-300">{{ __('Privacy') }}</a>
+        </span>
         <span class="flex gap-3">
             @foreach ($locales as $code => $info)
                 <a href="{{ current_url_in($code) }}" hreflang="{{ $code }}" lang="{{ $code }}"

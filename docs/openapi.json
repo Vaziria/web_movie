@@ -39,6 +39,10 @@
         {
             "name": "Push notifications",
             "description": "Browser notifications to visitors who allowed them. New movies are announced automatically when they go live (unless `notify_subscribers` is false); these endpoints send a custom message and show the numbers. Messages are sent by a job that runs every minute."
+        },
+        {
+            "name": "Users & statistics",
+            "description": "Visitor accounts and daily/monthly active numbers (read-only). Block, delete and reset links are in the admin panel."
         }
     ],
     "security": [
@@ -2198,6 +2202,326 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "operationId": "users.index",
+                "description": "Newest first, 50 per page. `watches_count` = movies the user opened.",
+                "summary": "List users",
+                "tags": [
+                    "Users & statistics"
+                ],
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search in name and email.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "email": {
+                                                        "type": "string"
+                                                    },
+                                                    "google": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "is_admin": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "blocked": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "watches_count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "created_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "last_active_at": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": [
+                                                    "id",
+                                                    "name",
+                                                    "email",
+                                                    "google",
+                                                    "is_admin",
+                                                    "blocked",
+                                                    "watches_count",
+                                                    "created_at",
+                                                    "last_active_at"
+                                                ]
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer"
+                                                },
+                                                "last_page": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "last_page",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
+                    }
+                }
+            }
+        },
+        "/stats": {
+            "get": {
+                "operationId": "stats.index",
+                "description": "Daily active (last 30 days) and monthly active (last 12 months, distinct visitors) for logged-in users and\nguests, plus sign-ups per day. Days are WIB. Guests are counted per browser; crawlers are not counted.",
+                "summary": "Active users",
+                "tags": [
+                    "Users & statistics"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "totals": {
+                                            "type": "object",
+                                            "properties": {
+                                                "users_total": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "users_blocked": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "google_users": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "signups_today": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "active_today_users": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "active_today_guests": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "active_month_users": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                },
+                                                "active_month_guests": {
+                                                    "type": "integer",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "users_total",
+                                                "users_blocked",
+                                                "google_users",
+                                                "signups_today",
+                                                "active_today_users",
+                                                "active_today_guests",
+                                                "active_month_users",
+                                                "active_month_guests"
+                                            ]
+                                        },
+                                        "daily": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "day": {
+                                                        "type": "string"
+                                                    },
+                                                    "users": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "integer",
+                                                                "enum": [
+                                                                    0
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    "guests": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "integer",
+                                                                "enum": [
+                                                                    0
+                                                                ]
+                                                            }
+                                                        ]
+                                                    },
+                                                    "signups": {
+                                                        "type": "integer"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "day",
+                                                    "users",
+                                                    "guests",
+                                                    "signups"
+                                                ]
+                                            }
+                                        },
+                                        "monthly": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "month": {
+                                                        "type": "string"
+                                                    },
+                                                    "users": {
+                                                        "type": "integer",
+                                                        "minimum": 0
+                                                    },
+                                                    "guests": {
+                                                        "type": "integer",
+                                                        "minimum": 0
+                                                    }
+                                                },
+                                                "required": [
+                                                    "month",
+                                                    "users",
+                                                    "guests"
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "totals",
+                                        "daily",
+                                        "monthly"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/AuthenticationException"
                     }
                 }
             }

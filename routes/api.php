@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\PushController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\StatsController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
 // Route names ("api." is dropped) are the operationIds in docs/openapi.json: keep them stable.
@@ -40,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/tags/{tag}', [TagController::class, 'update'])->name('api.tags.update');
     Route::put('/tags/{tag}', [TagController::class, 'update'])->name('api.tags.update.put');
     Route::delete('/tags/{tag}', [TagController::class, 'destroy'])->name('api.tags.destroy');
+
+    Route::get('/users', [UserController::class, 'index'])->name('api.users.index');
+    Route::get('/stats', [StatsController::class, 'index'])->name('api.stats.index');
 
     Route::get('/push', [PushController::class, 'index'])->name('api.push.index');
     Route::post('/push/messages', [PushController::class, 'store'])->middleware('throttle:10,1')->name('api.push.store');

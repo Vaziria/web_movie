@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Mail\PhpMailTransport;
 use App\Services\Push\PushTransport;
 use App\Services\Push\WebPushTransport;
+use App\Services\Settings;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
@@ -18,6 +19,8 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(PushTransport::class, WebPushTransport::class);
+        // One settings object per request, shared by controllers and middleware (so a save is seen right away).
+        $this->app->singleton(Settings::class);
     }
 
     /**
@@ -33,10 +36,9 @@ class AppServiceProvider extends ServiceProvider
         // MAIL_MAILER=phpmail: PHP mail(), for hosts without proc_open (Hostinger shared hosting).
         Mail::extend('phpmail', fn () => new PhpMailTransport);
 
-        // Password reset emails link to the admin panel's reset form.
-        ResetPassword::createUrlUsing(fn ($user, string $token) => route('admin.password.reset', [
-            'token' => $token,
-            'email' => $user->getEmailForPasswordReset(),
-        ]));
+        // Password reset emails: admins get the admin panel's form, visitors the site's (in the current language).
+        ResetPassword::createUrlUsing(fn ($user, string $token) => $user->is_admin
+            ? route('admin.password.reset', ['token' => $token, 'email' => $user->getEmailForPasswordReset()])
+            : lroute('auth.password.reset', ['token' => $token, 'email' => $user->getEmailForPasswordReset()]));
     }
 }

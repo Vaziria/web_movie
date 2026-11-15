@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\SetLocale;
+use App\Http\Middleware\TrackActivity;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,8 +16,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['admin' => EnsureAdmin::class, 'locale' => SetLocale::class]);
-        $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        $middleware->alias(['admin' => EnsureAdmin::class, 'locale' => SetLocale::class, 'track' => TrackActivity::class]);
+        // Admin pages send guests to the admin login; visitor pages (account) to the visitor login of their language.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->is('admin', 'admin/*')
+            ? route('admin.login')
+            : lroute('auth.login', [], $request->is('en', 'en/*') ? 'en' : 'id'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

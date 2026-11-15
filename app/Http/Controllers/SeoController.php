@@ -33,6 +33,8 @@ class SeoController extends Controller
                 'lastmod' => $t->movies_max_moviesupdated_at, 'changefreq' => 'weekly', 'priority' => '0.5',
             ]));
 
+        $pages->push(['route' => 'pages.privacy', 'params' => [], 'lastmod' => null, 'changefreq' => 'yearly', 'priority' => '0.2']);
+
         Movie::query()->published()->latest('id')->limit(20000)->get(['slug', 'updated_at'])
             ->each(fn (Movie $m) => $pages->push([
                 'route' => 'movies.show', 'params' => $m,

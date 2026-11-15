@@ -175,6 +175,54 @@ What gets sent:
 Tips: one notification a day at most, or people turn them off. Test on your own phone first: turn notifications
 on, then publish a movie or send a custom message.
 
+## Visitor accounts
+
+Visitors can make a free account at **Daftar** (`/daftar`, English `/en/register`) and log in at **Masuk**
+(`/masuk`, `/en/login`), with email + password or **Lanjutkan dengan Google**. The header shows "Masuk", or the
+visitor's initials/photo when logged in, which opens their **Akun** page (`/akun`): change name, change or create a
+password, log out, delete the account. Forgot password: `/lupa-password` emails a reset link (it may land in spam
+until the domain has an SPF record; Google login doesn't need email at all).
+
+**Free movies for guests.** Visitors who are not logged in can open **2 different movies**; re-opening one of those
+never counts again. On the next movie the player is replaced by "Masuk untuk lanjut menonton" with Google / sign-up /
+log-in buttons, and after logging in they come straight back to that movie. Logged-in visitors watch without limits.
+
+- Counted per browser (a cookie), not per IP address: many Indonesian phones share one IP, so an IP limit would
+  block whole groups of people. Clearing cookies or a private tab gives a guest 2 new free movies; that's expected.
+- **SEO is not affected:** search engines always arrive as a new visitor, so they always see the player, the
+  VideoObject data and the full page. The locked page also keeps all its SEO data.
+- Change it in **Admin → Settings**: the number (0 = no limit, nobody has to log in) and "in total" or "per day".
+
+**Admin → Users**: every account with sign-up date, last active and movies watched. Search by name or email;
+filter Google / email only / blocked / admins. Open a user to see what they watched recently, and to:
+
+- **Block** (they are logged out on their next page and can't log in, also not with Google) or **Unblock**;
+- **Send password reset link** (email accounts);
+- **Delete** the account and its watch history.
+
+Admin accounts can't be blocked or deleted there. A visitor account never gets admin rights from the panel; that
+stays a server command (`php artisan app:admin-email`), on purpose.
+
+**Admin → Stats**: active today and this month, number of users, sign-ups today; bar charts of **daily active users**
+(30 days), **monthly active users** (12 months, distinct visitors) and **sign-ups per day**. Logged-in users and
+guests are shown separately. A visitor counts once per day; guests are counted per browser from their second page
+view, so crawlers are left out. Days are WIB. Also in the API: `GET /api/stats`.
+
+**Admin → Settings**:
+
+- **Google login**: Client ID and Client secret from Google Cloud (Google Auth Platform → Clients → your web
+  client), and "On". The secret is stored encrypted and never shown again; leave the box empty to keep it. The page
+  shows the redirect URI to put in Google Cloud: `https://moviemov.id/auth/google/callback`. The button appears on
+  the site as soon as both are saved. Never send the secret in chat; if it was shared, make a new one in Google
+  Cloud and delete the old one.
+- **Free movies for guests** (above).
+- **Contact email** shown on the privacy page for data requests.
+
+**Privacy policy** (`/privasi`, `/en/privacy`), linked in the footer and the sign-up form: what is collected
+(account, watch history, cookies, push, hashed IP for reports), why, who else is involved (Hostinger, Google, push
+services, video hosts), how long, and the visitor's rights under UU PDP (No. 27/2022). Read it once and tell me if
+anything should change; keep it true when features change.
+
 ## Content rules
 
 Only post videos you have the rights to share. The site embeds the player; the video host serves the file.

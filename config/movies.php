@@ -27,4 +27,15 @@ return [
 
     /* Daily view rows older than this are pruned now and then. */
     'view_days_keep' => 90,
+
+    /*
+     | Visitors who are not logged in may open this many different movies; then the player asks them to log in.
+     | 0 = no limit. Period "total" (used up for good, per browser) or "day" (resets every day, admin time zone).
+     | Admin → Settings overrides both.
+     */
+    'guest_free_movies' => (int) env('GUEST_FREE_MOVIES', 2),
+    'guest_limit_period' => env('GUEST_LIMIT_PERIOD', 'total'),
+
+    /* Daily active visitor rows (Admin → Statistics) older than this are pruned. */
+    'activity_days_keep' => 400,
 ];

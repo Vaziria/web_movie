@@ -7,6 +7,8 @@ use App\Models\Movie;
 use App\Models\PlayerReport;
 use App\Models\Tag;
 use App\Services\RatingService;
+use App\Services\Settings;
+use App\Services\Visitors;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -221,15 +223,22 @@ class MovieController extends Controller
         ]);
     }
 
-    public function show(Request $request, Movie $movie, RatingService $ratings): View
+    public function show(Request $request, Movie $movie, RatingService $ratings, Visitors $visitors, Settings $settings): View
     {
         // Drafts and scheduled movies: 404 for visitors, a noindex preview for a logged-in admin.
         $preview = ! $movie->isPublished();
         abort_if($preview && ! $request->user()?->is_admin, 404);
 
-        // Count one view per movie per session (shared by both languages). Previews are not counted.
+        // Guests get a few free movies, then the player asks them to log in (crawlers always see the player).
+        $access = $preview ? ['allowed' => true, 'guest' => false, 'limit' => 0, 'left' => PHP_INT_MAX, 'period' => 'total'] : $visitors->access($request, $movie);
+        if ($access['allowed'] && $request->user() && ! $preview) {
+            $visitors->recordWatch($request->user(), $movie);
+        }
+        $google = $settings->googleEnabled();
+
+        // Count one view per movie per session (shared by both languages). Previews and locked players are not counted.
         $key = 'viewed.'.$movie->id;
-        if (! $preview && ! $request->session()->has($key)) {
+        if (! $preview && $access['allowed'] && ! $request->session()->has($key)) {
             DB::table('movies')->where('id', $movie->id)->increment('views');
             $movie->recordDailyView();
             $movie->views++;
@@ -320,7 +329,7 @@ class MovieController extends Controller
             'jsonld_site' => $breadcrumbs,
         ];
 
-        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server', 'preview'));
+        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server', 'preview', 'access', 'google'));
     }
 
     /** hreflang map: each locale's URL plus x-default (Indonesian). */

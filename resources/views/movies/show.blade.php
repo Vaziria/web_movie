@@ -14,6 +14,25 @@
         {{-- External player. Sandbox (blocks pop-up ads) is opt-in via EMBED_SANDBOX: many hosts refuse to play when sandboxed.
              Permissions use `*`: hosts redirect the player to rotating mirror domains (vidara.to -> as9u7bgh9.com), and a
              bare `fullscreen` only covers the src domain, so the player's fullscreen button would silently do nothing. --}}
+        @if (! $access['allowed'])
+            {{-- Free movies used up: ask to log in. Same spot and size as the player. --}}
+            <div class="-mx-4 -mt-4 flex min-h-[56.25vw] flex-col items-center justify-center gap-3 bg-ink-900 px-6 py-8 text-center md:mx-0 md:mt-0 md:min-h-0 md:aspect-video md:rounded-lg">
+                <p class="text-base font-semibold text-white">{{ __('Log in to keep watching') }}</p>
+                <p class="max-w-sm text-sm text-neutral-400">
+                    {{ $access['period'] === 'day'
+                        ? __('You have watched your :count free movies for today. Log in or sign up for free to watch without limits.', ['count' => $access['limit']])
+                        : __('You have watched your :count free movies. Log in or sign up for free to watch without limits.', ['count' => $access['limit']]) }}
+                </p>
+                @php $next = ['next' => request()->getRequestUri()]; @endphp
+                <div class="flex w-full max-w-xs flex-col gap-2">
+                    @if ($google)
+                        @include('partials.google-button', ['next' => $next['next']])
+                    @endif
+                    <a href="{{ lroute('auth.register', $next) }}" rel="nofollow" class="inline-flex h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-white hover:bg-accent-hover">{{ __('Sign up for free') }}</a>
+                    <a href="{{ lroute('auth.login', $next) }}" rel="nofollow" class="inline-flex h-11 items-center justify-center rounded-lg border border-ink-700 px-4 text-sm text-neutral-200 hover:border-neutral-500">{{ __('Log in') }}</a>
+                </div>
+            </div>
+        @else
         <div class="-mx-4 -mt-4 aspect-video bg-black md:mx-0 md:mt-0 md:overflow-hidden md:rounded-lg">
             <iframe src="{{ $players[$server] }}"
                     title="{{ $movie->title }}"
@@ -23,9 +42,17 @@
                     referrerpolicy="no-referrer"
                     class="size-full border-0"></iframe>
         </div>
+        @endif
+
+        @if ($access['allowed'] && $access['guest'] && $access['limit'] > 0)
+            <p class="mt-2 text-xs text-neutral-500">
+                {{ $access['left'] > 0 ? __('Free movies left: :n', ['n' => $access['left']]) : __('This is your last free movie.') }}
+                · <a href="{{ lroute('auth.register', ['next' => request()->getRequestUri()]) }}" rel="nofollow" class="text-neutral-300 underline-offset-4 hover:text-white hover:underline">{{ __('Sign up for free to watch without limits') }}</a>
+            </p>
+        @endif
 
         {{-- Server switch + broken-video report, right under the player. Links reload the page (no JS). --}}
-        <div class="mt-3 flex flex-wrap items-center gap-2">
+        <div @class(['mt-3 flex flex-wrap items-center gap-2', 'hidden' => ! $access['allowed']])>
             @if (count($players) > 1)
                 <span class="mr-1 text-xs text-neutral-500">{{ __('Server') }}</span>
                 @foreach ($players as $n => $src)
