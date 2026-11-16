@@ -85,6 +85,11 @@ class Settings
         return in_array($p, ['total', 'day'], true) ? $p : 'total';
     }
 
+    public function premiumEnabled(): bool
+    {
+        return $this->get('premium_enabled', '0') === '1';
+    }
+
     public function contactEmail(): ?string
     {
         return $this->get('contact_email');

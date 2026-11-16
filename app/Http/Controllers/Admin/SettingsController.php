@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\Controller;
 use App\Services\Settings;
+use App\Services\Stream\VidaraStream;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 /** Admin → Settings: Google login keys (secret encrypted, never shown), guest limit, contact email. */
@@ -18,6 +20,7 @@ class SettingsController extends Controller
             's' => $settings,
             'hasSecret' => $settings->has('google_client_secret'),
             'redirectUri' => GoogleController::callbackUrl(),
+            'vidaraLast' => Cache::get(VidaraStream::LAST_RESULT_KEY),
         ]);
     }
 
@@ -31,6 +34,7 @@ class SettingsController extends Controller
             'guest_free_movies' => ['required', 'integer', 'between:0,50'],
             'guest_limit_period' => ['required', 'in:total,day'],
             'contact_email' => ['nullable', 'email', 'max:255'],
+            'premium_enabled' => ['sometimes', 'boolean'],
         ], ['google_client_id.regex' => 'The client ID ends with .apps.googleusercontent.com.']);
 
         $values = [
@@ -39,6 +43,7 @@ class SettingsController extends Controller
             'guest_free_movies' => (string) $data['guest_free_movies'],
             'guest_limit_period' => $data['guest_limit_period'],
             'contact_email' => $data['contact_email'] ?? null,
+            'premium_enabled' => $request->boolean('premium_enabled') ? '1' : '0',
         ];
         // An empty secret box keeps the saved secret; "remove" clears it.
         if ($request->boolean('remove_google_secret')) {

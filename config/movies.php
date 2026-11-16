@@ -38,4 +38,13 @@ return [
 
     /* Daily active visitor rows (Admin → Statistics) older than this are pruned. */
     'activity_days_keep' => 400,
+
+    /*
+     | Premium (ad-free) player: the direct vidara link is fetched by the server and cached this long (never past the
+     | link's own expiry, ~8 h). A failed fetch is retried after stream_retry_seconds. Turn the feature on in
+     | Admin -> Settings.
+     */
+    'vidara_stream_api' => env('VIDARA_STREAM_API', 'https://vidara.to/api/stream'),
+    'stream_cache_seconds' => (int) env('STREAM_CACHE_SECONDS', 3600),
+    'stream_retry_seconds' => 60,
 ];

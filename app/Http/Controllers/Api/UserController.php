@@ -38,6 +38,7 @@ class UserController extends Controller
                 'google' => $u->google_id !== null,
                 'is_admin' => (bool) $u->is_admin,
                 'blocked' => $u->isBlocked(),
+                'premium_until' => $u->premium_until?->toIso8601String(),
                 'watches_count' => (int) $u->watches_count,
                 'created_at' => $u->created_at?->toIso8601String(),
                 'last_active_at' => $u->last_active_at?->toIso8601String(),

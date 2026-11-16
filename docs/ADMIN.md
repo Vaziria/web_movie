@@ -223,6 +223,39 @@ view, so crawlers are left out. Days are WIB. Also in the API: `GET /api/stats`.
 services, video hosts), how long, and the visitor's rights under UU PDP (No. 27/2022). Read it once and tell me if
 anything should change; keep it true when features change.
 
+## Premium player (ad-free)
+
+Movies with a **vidara** player can get a second, ad-free player for premium members. Turn it on in **Admin →
+Settings → Premium player** (it is off until you do).
+
+What visitors see on a movie page when it is on:
+
+- **On top:** the premium box. Premium members and admins get our own player there (no ads, no pop-ups). Everyone
+  else sees "Tonton tanpa iklan" with a **Dapatkan Premium** button that opens the Premium page (`/premium`).
+- **Below:** the free vidara player, as before (with its ads), still under the guest limit. For premium members it
+  is folded away as "Pemutar cadangan", a backup if the ad-free player ever fails.
+
+How a member gets premium (until payments are added): open the user in **Admin → Users** and press **+30 days**,
+**+90 days** or **+1 year** (counted from today, or from the current end date if premium is still running), or pick
+an end date, or **Remove**. Users with premium get a PREMIUM badge, and the list has a **Premium** filter. The
+Premium page shows the **contact email** from Settings as "how to subscribe", and asks visitors to mention their
+account email; without a contact email it says "Langganan segera dibuka".
+
+How it works: our server asks vidara for the movie's direct video link and keeps it for an hour (a link lasts about
+8 hours). The video itself streams from vidara's servers to the viewer, not through Hostinger. The player only
+downloads after the viewer presses play and keeps about 30-60 seconds ahead, to save mobile data.
+
+- **Google:** the movie page now tells Google where the video file is (`/stream/<movie>.m3u8`), and marks the
+  premium box as paid content (like a news paywall), so this is allowed and not "cloaking". Google's own crawler
+  is let into the premium player; it is checked by Google's official DNS test, so faking the crawler's name doesn't
+  work. Google still decides whether to index each video, and it takes days to weeks; check **Search Console → URL
+  Inspection** on a movie page after it's live.
+- **Settings shows** "Last video link from vidara: OK, 2 minutes ago" (or "failed (...)"). If it says failed, the
+  ad-free player shows a message and members can use the free player; nothing else breaks.
+- **Risks you accepted:** the vidara address used here is the one their own player uses, not a documented API, so
+  vidara can change or block it at any time. Premium views don't show vidara's ads, so they don't earn vidara
+  revenue. Only use it for videos you have the rights to.
+
 ## Content rules
 
 Only post videos you have the rights to share. The site embeds the player; the video host serves the file.

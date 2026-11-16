@@ -8,6 +8,7 @@ use App\Models\PlayerReport;
 use App\Models\Tag;
 use App\Services\RatingService;
 use App\Services\Settings;
+use App\Services\Stream\Premium;
 use App\Services\Visitors;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -223,7 +224,7 @@ class MovieController extends Controller
         ]);
     }
 
-    public function show(Request $request, Movie $movie, RatingService $ratings, Visitors $visitors, Settings $settings): View
+    public function show(Request $request, Movie $movie, RatingService $ratings, Visitors $visitors, Settings $settings, Premium $premiumPlayer): View
     {
         // Drafts and scheduled movies: 404 for visitors, a noindex preview for a logged-in admin.
         $preview = ! $movie->isPublished();
@@ -235,6 +236,19 @@ class MovieController extends Controller
             $visitors->recordWatch($request->user(), $movie);
         }
         $google = $settings->googleEnabled();
+
+        // Premium (ad-free) player box on top of the free player (layout A). Unlocked for members, admins and verified
+        // Googlebot; everyone else sees the offer. Members get the free player folded away as a backup.
+        $premium = ['available' => ! $preview && $premiumPlayer->availableFor($movie)];
+        if ($premium['available']) {
+            $member = $premiumPlayer->isMember($request);
+            $premium += [
+                'unlocked' => $member || $premiumPlayer->canWatch($request),
+                'member' => $member,
+                'until' => $request->user()?->premium_until,
+                'stream' => route('stream.show', $movie),
+            ];
+        }
 
         // Count one view per movie per session (shared by both languages). Previews and locked players are not counted.
         $key = 'viewed.'.$movie->id;
@@ -280,6 +294,15 @@ class MovieController extends Controller
                 'userInteractionCount' => $movie->views,
             ],
         ]);
+        if ($premium['available']) {
+            // The video file (fixed address) sits in the premium player box: a paywall, marked as such so Google may
+            // see the unlocked player without it counting as cloaking.
+            $video += [
+                'contentUrl' => $premium['stream'],
+                'isAccessibleForFree' => false,
+                'hasPart' => ['@type' => 'WebPageElement', 'isAccessibleForFree' => false, 'cssSelector' => '.premium-player'],
+            ];
+        }
 
         $schema = array_filter([
             '@context' => 'https://schema.org',
@@ -329,7 +352,7 @@ class MovieController extends Controller
             'jsonld_site' => $breadcrumbs,
         ];
 
-        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server', 'preview', 'access', 'google'));
+        return view('movies.show', compact('movie', 'myScore', 'seo', 'related', 'players', 'server', 'preview', 'access', 'google', 'premium'));
     }
 
     /** hreflang map: each locale's URL plus x-default (Indonesian). */

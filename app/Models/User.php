@@ -32,12 +32,19 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'blocked_at' => 'datetime',
             'last_active_at' => 'datetime',
+            'premium_until' => 'datetime',
         ];
     }
 
     public function isBlocked(): bool
     {
         return $this->blocked_at !== null;
+    }
+
+    /** Premium player access: an active premium period, or any admin. */
+    public function isPremium(): bool
+    {
+        return (bool) $this->is_admin || ($this->premium_until !== null && $this->premium_until->isFuture());
     }
 
     public function hasPassword(): bool

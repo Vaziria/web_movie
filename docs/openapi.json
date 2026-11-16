@@ -2267,6 +2267,12 @@
                                                     "blocked": {
                                                         "type": "boolean"
                                                     },
+                                                    "premium_until": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
                                                     "watches_count": {
                                                         "type": "integer"
                                                     },
@@ -2290,6 +2296,7 @@
                                                     "google",
                                                     "is_admin",
                                                     "blocked",
+                                                    "premium_until",
                                                     "watches_count",
                                                     "created_at",
                                                     "last_active_at"

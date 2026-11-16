@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\View\View;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
 /** Admin → Users: visitor accounts. Admin accounts are listed but cannot be blocked or deleted here. */
 class UserController extends Controller
 {
-    public const FILTERS = ['all' => 'All', 'google' => 'Google login', 'email' => 'Email only', 'blocked' => 'Blocked', 'admins' => 'Admins'];
+    public const FILTERS = ['all' => 'All', 'premium' => 'Premium', 'google' => 'Google login', 'email' => 'Email only', 'blocked' => 'Blocked', 'admins' => 'Admins'];
 
     public function index(Request $request): View
     {
@@ -27,6 +28,7 @@ class UserController extends Controller
             ->when($filter === 'email', fn ($w) => $w->whereNull('google_id'))
             ->when($filter === 'blocked', fn ($w) => $w->whereNotNull('blocked_at'))
             ->when($filter === 'admins', fn ($w) => $w->where('is_admin', true))
+            ->when($filter === 'premium', fn ($w) => $w->where('premium_until', '>', now()))
             ->latest('id')
             ->paginate(30)->withQueryString();
 
@@ -60,6 +62,29 @@ class UserController extends Controller
         $user->forceFill(['blocked_at' => null])->save();
 
         return back()->with('status', "Unblocked {$user->email}.");
+    }
+
+    /** Premium by hand (payments come later): add days (from today or from the current end), set a date, or remove. */
+    public function premium(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'action' => ['required', 'in:add,set,remove'],
+            'days' => ['required_if:action,add', 'nullable', 'integer', 'between:1,3650'],
+            'until' => ['required_if:action,set', 'nullable', 'date', 'after:today'],
+        ]);
+
+        $tz = (string) config('movies.admin_timezone');
+        $until = match ($data['action']) {
+            'add' => ($user->premium_until?->isFuture() ? $user->premium_until->copy() : now())->addDays((int) $data['days']),
+            // End of that day in WIB, stored in the app's time zone (Eloquent saves a date as-is, without converting).
+            'set' => Carbon::parse($data['until'], $tz)->endOfDay()->setTimezone((string) config('app.timezone')),
+            'remove' => null,
+        };
+        $user->forceFill(['premium_until' => $until])->save();
+
+        return back()->with('status', $until
+            ? "{$user->email} has premium until ".$until->timezone($tz)->format('j M Y H:i').' '.config('movies.admin_timezone_label').'.'
+            : "Premium removed for {$user->email}.");
     }
 
     public function sendReset(User $user): RedirectResponse

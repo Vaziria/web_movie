@@ -40,6 +40,7 @@
                             <span class="flex items-center gap-2">
                                 <span class="truncate text-sm font-medium text-white">{{ $u->name }}</span>
                                 @if ($u->is_admin)<span class="rounded bg-accent px-1.5 text-[10px] font-medium leading-4 text-white">ADMIN</span>@endif
+                                @if ($u->premium_until?->isFuture())<span class="rounded bg-amber-400 px-1.5 text-[10px] font-bold leading-4 text-ink-950">PREMIUM</span>@endif
                                 @if ($u->isBlocked())<span class="rounded bg-red-950 px-1.5 text-[10px] font-medium leading-4 text-red-300">BLOCKED</span>@endif
                                 @if ($u->google_id)<span class="text-[10px] text-neutral-500">Google</span>@endif
                             </span>

@@ -17,8 +17,10 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\MovieController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PremiumController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\SeoController;
+use App\Http\Controllers\StreamController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -44,6 +46,7 @@ $public = function (string $l) {
         Route::delete($p('/akun', '/account'), [AccountController::class, 'destroy'])->middleware('throttle:5,1')->name('account.destroy');
     });
     Route::get($p('/privasi', '/privacy'), [PageController::class, 'privacy'])->name('pages.privacy');
+    Route::get('/premium', [PremiumController::class, 'show'])->name('premium');
 
     Route::get('/', [MovieController::class, 'index'])->name('movies.index');
     Route::get('/category/{category}', [MovieController::class, 'category'])->name('movies.category');
@@ -58,6 +61,9 @@ $public = function (string $l) {
 };
 Route::middleware(['locale:id', 'track'])->group(fn () => $public('id'));
 Route::prefix('en')->name('en.')->middleware(['locale:en', 'track'])->group(fn () => $public('en'));
+
+// Premium player / Google's video file: fixed address that forwards to the current vidara link.
+Route::get('/stream/{movie}.m3u8', [StreamController::class, 'show'])->middleware('throttle:60,1')->name('stream.show');
 
 // Google login: one callback URL for both languages (the language is kept in the session).
 Route::get('/auth/google', [GoogleController::class, 'redirect'])->middleware('throttle:10,1')->name('auth.google');
@@ -92,6 +98,7 @@ Route::prefix('admin')->name('admin.')->middleware('locale:en')->group(function 
         Route::post('/users/{user}/block', [AdminUsers::class, 'block'])->name('users.block');
         Route::post('/users/{user}/unblock', [AdminUsers::class, 'unblock'])->name('users.unblock');
         Route::post('/users/{user}/reset-link', [AdminUsers::class, 'sendReset'])->middleware('throttle:10,1')->name('users.reset');
+        Route::post('/users/{user}/premium', [AdminUsers::class, 'premium'])->name('users.premium');
         Route::delete('/users/{user}', [AdminUsers::class, 'destroy'])->name('users.destroy');
         Route::get('/stats', [AdminStats::class, 'index'])->name('stats');
         Route::get('/settings', [AdminSettings::class, 'edit'])->name('settings');

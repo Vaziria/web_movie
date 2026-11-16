@@ -1,6 +1,18 @@
 @extends('layouts.app')
 
-@php $max = \App\Models\Movie::MAX_SCORE; @endphp
+@php
+    $max = \App\Models\Movie::MAX_SCORE;
+    // Layout A: premium (ad-free) box on top, free player under it. Members get the free player folded as a backup.
+    $hasPremium = $premium['available'];
+    $foldFree = $hasPremium && $premium['member'];
+    $edge = $hasPremium ? '-mx-4 md:mx-0' : '-mx-4 -mt-4 md:mx-0 md:mt-0';
+@endphp
+
+@if ($hasPremium && $premium['unlocked'])
+    @push('scripts')
+        @vite('resources/js/player.js')
+    @endpush
+@endif
 
 @section('content')
     @if ($preview)
@@ -11,12 +23,49 @@
         </p>
     @endif
     <article>
+        @if ($hasPremium)
+            {{-- .premium-player is the paywalled part named in the VideoObject (hasPart.cssSelector): keep the class. --}}
+            <div class="premium-player relative -mx-4 -mt-4 aspect-video overflow-hidden bg-black md:mx-0 md:mt-0 md:rounded-lg">
+                @if ($premium['unlocked'])
+                    <video class="size-full" controls playsinline preload="none" poster="{{ $movie->thumbnailSrc() }}"
+                           data-src="{{ $premium['stream'] }}" aria-label="{{ $movie->title }}">
+                        <source src="{{ $premium['stream'] }}" type="application/vnd.apple.mpegurl">
+                    </video>
+                    <p data-player-error hidden class="absolute inset-x-0 bottom-0 bg-black/80 p-3 text-center text-sm text-neutral-200">
+                        {{ __('The ad-free player could not load. Use the free player below.') }}
+                    </p>
+                @else
+                    @if ($poster = $movie->thumbnailSrc())
+                        <img src="{{ $poster }}" alt="" onerror="this.remove()" class="absolute inset-0 size-full object-cover opacity-30">
+                    @endif
+                    <div class="relative flex size-full flex-col items-center justify-center gap-2 px-6 text-center">
+                        <span class="rounded bg-amber-400 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-950">Premium</span>
+                        <p class="text-base font-semibold text-white">{{ __('Watch without ads') }}</p>
+                        <p class="max-w-sm text-sm text-neutral-300">{{ __('Premium members get an ad-free player.') }}</p>
+                        <a href="{{ lroute('premium') }}" class="mt-1 inline-flex h-11 items-center rounded-lg bg-white px-5 text-sm font-medium text-ink-950 hover:bg-neutral-200">{{ __('Get Premium') }}</a>
+                    </div>
+                @endif
+            </div>
+            @if ($premium['member'] && $premium['until'] && $premium['until']->isFuture())
+                <p class="mt-2 text-xs text-neutral-500">{{ __('Premium active until :date', ['date' => $premium['until']->timezone(config('movies.admin_timezone'))->translatedFormat('j F Y')]) }}</p>
+            @endif
+            @unless ($foldFree)
+                <h2 class="mb-2 mt-4 text-sm font-medium text-neutral-400">{{ __('Free player (with ads)') }}</h2>
+            @endunless
+        @endif
+
+        @if ($foldFree)
+            <details class="mt-3">
+                <summary class="inline-flex min-h-11 cursor-pointer items-center text-sm text-neutral-400 hover:text-white">{{ __('Backup player (free, with ads)') }}</summary>
+                <div class="mt-2">
+        @endif
+
         {{-- External player. Sandbox (blocks pop-up ads) is opt-in via EMBED_SANDBOX: many hosts refuse to play when sandboxed.
              Permissions use `*`: hosts redirect the player to rotating mirror domains (vidara.to -> as9u7bgh9.com), and a
              bare `fullscreen` only covers the src domain, so the player's fullscreen button would silently do nothing. --}}
         @if (! $access['allowed'])
             {{-- Free movies used up: ask to log in. Same spot and size as the player. --}}
-            <div class="-mx-4 -mt-4 flex min-h-[56.25vw] flex-col items-center justify-center gap-3 bg-ink-900 px-6 py-8 text-center md:mx-0 md:mt-0 md:min-h-0 md:aspect-video md:rounded-lg">
+            <div class="{{ $edge }} flex min-h-[56.25vw] flex-col items-center justify-center gap-3 bg-ink-900 px-6 py-8 text-center md:min-h-0 md:aspect-video md:rounded-lg">
                 <p class="text-base font-semibold text-white">{{ __('Log in to keep watching') }}</p>
                 <p class="max-w-sm text-sm text-neutral-400">
                     {{ $access['period'] === 'day'
@@ -33,8 +82,9 @@
                 </div>
             </div>
         @else
-        <div class="-mx-4 -mt-4 aspect-video bg-black md:mx-0 md:mt-0 md:overflow-hidden md:rounded-lg">
+        <div class="{{ $edge }} aspect-video bg-black md:overflow-hidden md:rounded-lg">
             <iframe src="{{ $players[$server] }}"
+                    @if ($foldFree) loading="lazy" @endif
                     title="{{ $movie->title }}"
                     @if (config('movies.embed_sandbox')) sandbox="allow-scripts allow-same-origin allow-presentation" @endif
                     allow="fullscreen *; encrypted-media *; picture-in-picture *; screen-wake-lock *"
@@ -82,6 +132,11 @@
                 </form>
             </details>
         </div>
+
+        @if ($foldFree)
+                </div>
+            </details>
+        @endif
 
         <nav aria-label="{{ __('Breadcrumb') }}" class="mt-3 text-xs text-neutral-500">
             <a href="{{ lroute('movies.index') }}" class="hover:text-neutral-300">{{ __('Home') }}</a>

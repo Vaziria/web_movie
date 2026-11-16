@@ -375,12 +375,14 @@ Visitor accounts and active-user numbers, read-only. Blocking, deleting and rese
 
 ### `GET /users`
 
-Newest first, 50 per page. `?q=` searches name and email, `?page=2`.
+Newest first, 50 per page. `?q=` searches name and email, `?page=2`. `premium_until` is null for users without
+premium (premium is set in the admin panel, Admin → Users).
 
 ```json
 {
   "data": [
     { "id": 12, "name": "Siti", "email": "siti@gmail.com", "google": true, "is_admin": false, "blocked": false,
+      "premium_until": "2026-12-16T10:00:00+00:00",
       "watches_count": 7, "created_at": "2026-11-15T10:00:00+00:00", "last_active_at": "2026-11-15T12:30:00+00:00" }
   ],
   "meta": { "current_page": 1, "last_page": 1, "total": 1 }

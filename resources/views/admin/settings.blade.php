@@ -42,6 +42,28 @@
             </div>
         </fieldset>
 
+        <fieldset class="space-y-3 rounded-lg border border-ink-800 p-4">
+            <legend class="px-1 text-sm text-neutral-400">Premium player (ad-free)</legend>
+            <label class="flex min-h-11 items-center gap-2 text-sm text-neutral-300">
+                <input type="hidden" name="premium_enabled" value="0">
+                <input type="checkbox" name="premium_enabled" value="1" @checked(old('premium_enabled', $s->premiumEnabled() ? '1' : '0') === '1') class="size-4 accent-accent"> On
+            </label>
+            <p class="text-xs text-neutral-500">
+                On: movies with a vidara player get an ad-free player box above the free player. Premium members (set on
+                Admin → Users) and admins can play it; others see the offer and a link to the
+                <a href="{{ lroute('premium', [], 'id') }}" target="_blank" rel="noopener" class="underline">Premium page</a>
+                (it shows the contact email below). Google's crawler is let in too, so the video can be indexed.
+            </p>
+            <p class="text-xs {{ $vidaraLast ? ($vidaraLast['ok'] ? 'text-emerald-400' : 'text-amber-300') : 'text-neutral-500' }}">
+                @if ($vidaraLast)
+                    Last video link from vidara: {{ $vidaraLast['ok'] ? 'OK' : 'failed ('.$vidaraLast['error'].')' }},
+                    {{ \Illuminate\Support\Carbon::createFromTimestamp($vidaraLast['at'])->diffForHumans() }}.
+                @else
+                    No video link fetched from vidara yet (happens the first time a premium member plays a movie).
+                @endif
+            </p>
+        </fieldset>
+
         <fieldset class="space-y-4 rounded-lg border border-ink-800 p-4">
             <legend class="px-1 text-sm text-neutral-400">Free movies for visitors who are not logged in</legend>
             <div>
